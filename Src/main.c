@@ -38,10 +38,11 @@
 #include "usbd_cdc_if.h"
 #include <stdlib.h>
 #include <string.h>
-/* USER CODE END Includes */
 
-/* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc;
+#define IO1_ADC ADC_CHSELR_CHSEL6
+#define IO2_ADC ADC_CHSELR_CHSEL7
+#define IO3_ADC ADC_CHSELR_CHSEL9
+/* USER CODE END Includes */
 
 /* USER CODE BEGIN PV */
 /* Private variables ---------------------------------------------------------*/
@@ -67,12 +68,7 @@ int main(void)
   uint8_t buff[] = "Hello World\n\r";
   uint16_t buff_len = 14;
   uint16_t data;
-  /* USER CODE BEGIN 1 */
-
-  /* USER CODE END 1 */
-
-  /* MCU Configuration----------------------------------------------------------*/
-
+ 
   /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
   HAL_Init();
 
@@ -84,40 +80,41 @@ int main(void)
   MX_ADC_Init();
   MX_USB_DEVICE_Init();
 
-  /* USER CODE BEGIN 2 */
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  
+  //select IO1 for ADC conversion
+  ADC1->CHSELR = IO1_ADC;
   
   while (1)
   {
-     HAL_ADC_Start(&hadc);
+     //start ADC conversion
+     ADC1->CR |= ADC_CR_ADSTART;
+     
      LED1_GPIO_Port->BSRR |= LED1_Pin;
      LED2_GPIO_Port->BSRR |= LED2_Pin << 16;
      HAL_Delay(250);
-
-     //get ADC conversion
-     if (HAL_ADC_PollForConversion(&hadc, 10000) == HAL_OK)
-     {
-         data = HAL_ADC_GetValue(&hadc);
+     
+     //wait for conversion to finish
+     while(ADC1->CR & ADC_CR_ADSTART) {
+        HAL_Delay(1);
      }
-     HAL_ADC_Start(&hadc);
+     data = ADC1->DR;
 
      itoa(data, buff, 10);
      strcat(buff, "\n\r");
      //CDC_Transmit_FS(buff, strlen(buff));
-
+     
+     //start ADC conversion
+     ADC1->CR |= ADC_CR_ADSTART;
+     
      LED1_GPIO_Port->BSRR |= LED1_Pin << 16;
      LED2_GPIO_Port->BSRR |= LED2_Pin;
      HAL_Delay(250);
 
-     //get ADC conversion
-     if (HAL_ADC_PollForConversion(&hadc, 10000) == HAL_OK)
-     {
-         data = HAL_ADC_GetValue(&hadc);
+     //wait for conversion to finish
+     while(ADC1->CR & ADC_CR_ADSTART) {
+        HAL_Delay(1);
      }
+     data = ADC1->DR;
+     
      itoa(data, buff, 10);
      strcat(buff, "\n\r");
      CDC_Transmit_FS(buff, strlen(buff));
@@ -167,40 +164,19 @@ void SystemClock_Config(void)
 
 void MX_ADC_Init(void)
 {
+    //configure ADC clock
+    RCC->APB2ENR |= RCC_APB2ENR_ADC1EN; //enable ADC clock
+    RCC->CR2 |= RCC_CR2_HSI14ON; //enable sample clock
+    while ((RCC->CR2 & RCC_CR2_HSI14RDY) == 0) { //wait for clock to start up
+        HAL_Delay(1);
+    }
 
-  ADC_ChannelConfTypeDef sConfig;
-
-    /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion) 
-    */
-  hadc.Instance = ADC1;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-  hadc.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
-  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc.Init.LowPowerAutoWait = DISABLE;
-  hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc.Init.ContinuousConvMode = DISABLE;
-  hadc.Init.DiscontinuousConvMode = DISABLE;
-  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc.Init.DMAContinuousRequests = DISABLE;
-  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-
-  HAL_ADC_Init(&hadc);
-    /**Configure for the selected ADC regular channel to be converted. 
-    */
-  sConfig.Channel = ADC_CHANNEL_6;
-  sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  HAL_ADC_ConfigChannel(&hadc, &sConfig);
-    /**Configure for the selected ADC regular channel to be converted. 
-    */
-  sConfig.Channel = ADC_CHANNEL_7;
-  HAL_ADC_ConfigChannel(&hadc, &sConfig);
-    /**Configure for the selected ADC regular channel to be converted. 
-    */
-  sConfig.Channel = ADC_CHANNEL_9;
-  HAL_ADC_ConfigChannel(&hadc, &sConfig);
+    //configure ADC
+    ADC1->CR |= ADC_CR_ADEN; //enable ADC
+    while ((ADC1->ISR & ADC_ISR_ADRDY) == 0){ //wait until ready
+        HAL_Delay(1);
+    }
+    ADC1->CFGR2 &= (~ADC_CFGR2_CKMODE); //set ADC clock mode
 
 }
 /** Configure pins as 
@@ -210,53 +186,23 @@ void MX_ADC_Init(void)
         * EVENT_OUT
         * EXTI
 */
-void MX_GPIO_Init(void)
-{
+void MX_GPIO_Init(void) {
 
-  GPIO_InitTypeDef GPIO_InitStruct;
-  /* GPIO Ports Clock Enable */
-  __HAL_RCC_GPIOA_CLK_ENABLE();
-  __HAL_RCC_GPIOB_CLK_ENABLE();
-  /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOA, LED2_Pin|LED1_Pin, GPIO_PIN_RESET);
-  /*Configure GPIO pins : LED2_Pin LED1_Pin */
-  GPIO_InitStruct.Pin = LED2_Pin|LED1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+    //GPIO Clock enable
+    RCC->AHBENR |= RCC_AHBENR_GPIOAEN | RCC_AHBENR_GPIOBEN;
 
-}
-/* USER CODE BEGIN 4 */
+    //set initial output to low
+    GPIOA->BSRR |= (LED1_Pin | LED2_Pin) << 16;
 
-/* USER CODE END 4 */
+    //configure the pin settings LED1 (PA4) and LED2 (PA5)
+    GPIOA->MODER |= GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0; //set to output modes
+    //all other settings are okay
 
-#ifdef USE_FULL_ASSERT
+    //setup PA6 (IO1), PA7 (IO2), and PB1(IO3) as analog inputs
+    GPIOA->MODER |= GPIO_MODER_MODER6_0 | GPIO_MODER_MODER6_1 //PA6
+               |  GPIO_MODER_MODER7_0 | GPIO_MODER_MODER6_1;//PA7
 
-/**
-   * @brief Reports the name of the source file and the source line number
-   * where the assert_param error has occurred.
-   * @param file: pointer to the source file name
-   * @param line: assert_param error line source number
-   * @retval None
-   */
-void assert_failed(uint8_t* file, uint32_t line)
-{
-  /* USER CODE BEGIN 6 */
-  /* User can add his own implementation to report the file name and line number,
-    ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
-  /* USER CODE END 6 */
+    GPIOB->MODER |= GPIO_MODER_MODER1_0 | GPIO_MODER_MODER1_1;//PB1
+  
 
 }
-
-#endif
-
-/**
-  * @}
-  */ 
-
-/**
-  * @}
-*/ 
-
-/************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
