@@ -6,6 +6,10 @@
 Code for the a sensor module that communicates over a CAN bus. 
 Currently it is targeted for the stm32f042F6 uc, but will probably move to the stm32f042C6.
 
+### Description of code ###
+
+Currently all my code is in Src/main.c, this will probably change as time goes by.
+
 ### How do I get set up? ###
 
 make sure that gcc-arm-none-eabi is installed.
