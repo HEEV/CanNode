@@ -81,7 +81,9 @@ int main(void)
   MX_USB_DEVICE_Init();
 
   //select IO1 for ADC conversion
-  ADC1->CHSELR = IO1_ADC;
+  ADC1->CHSELR = IO3_ADC;
+  
+  HAL_Delay(300);
   
   while (1)
   {
@@ -90,7 +92,7 @@ int main(void)
      
      LED1_GPIO_Port->BSRR |= LED1_Pin;
      LED2_GPIO_Port->BSRR |= LED2_Pin << 16;
-     HAL_Delay(250);
+     HAL_Delay(100);
      
      //wait for conversion to finish
      while(ADC1->CR & ADC_CR_ADSTART) {
@@ -100,14 +102,14 @@ int main(void)
 
      itoa(data, buff, 10);
      strcat(buff, "\n\r");
-     //CDC_Transmit_FS(buff, strlen(buff));
+     CDC_Transmit_FS(buff, strlen(buff));
      
      //start ADC conversion
      ADC1->CR |= ADC_CR_ADSTART;
      
      LED1_GPIO_Port->BSRR |= LED1_Pin << 16;
      LED2_GPIO_Port->BSRR |= LED2_Pin;
-     HAL_Delay(250);
+     HAL_Delay(100);
 
      //wait for conversion to finish
      while(ADC1->CR & ADC_CR_ADSTART) {
