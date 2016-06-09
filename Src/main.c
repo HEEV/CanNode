@@ -113,7 +113,7 @@ int getDelay(){
 	}
 	data = ADC1->DR;
 	
-	return data * (MAX_DELAY/4096);
+	return data * (MAX_DELAY-50) / 4096 + 50;
 }
 
 /** System Clock Configuration
