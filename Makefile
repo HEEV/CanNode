@@ -13,10 +13,9 @@ TARGET=stm32f0xx
 SRCS = $(SRC_DIR)/main.c
 
 SRCS += $(SRC_DIR)/*.c
-#SRCS += $(SRC_DIR)/$(TARGET)*.c 
 SRCS += $(STM_LIB_SRC)/Src/$(TARGET)*.c
-SRCS += $(STM_USB_CORE)/Src/*.c
-SRCS += $(STM_USB_CDC)/Src/*.c
+#SRCS += $(STM_USB_CORE)/Src/*.c
+#SRCS += $(STM_USB_CDC)/Src/*.c
 SRCS += $(CMSIS_STM32)/Source/Templates/system_$(TARGET).c
 SRCS += $(CMSIS_STM32)/Source/Templates/gcc/startup_stm32f042x6.s
 
@@ -39,8 +38,8 @@ CFLAGS += -I$(INC_DIR)
 CFLAGS += -I$(CMSIS_CORE)
 CFLAGS += -I$(CMSIS_STM32)/Include
 CFLAGS += -I$(STM_LIB_SRC)/Inc
-CFLAGS += -I$(STM_USB_CORE)/Inc
-CFLAGS += -I$(STM_USB_CDC)/Inc
+#CFLAGS += -I$(STM_USB_CORE)/Inc
+#CFLAGS += -I$(STM_USB_CDC)/Inc
 
 OBJS = $(SRCS:.c=.o)
 
