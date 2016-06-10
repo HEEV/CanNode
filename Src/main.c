@@ -102,18 +102,22 @@ int main(void)
 int getDelay(){
 
 	uint16_t data;
-	const uint16_t MAX_DELAY = 500; //max delay 500ms
+	const uint16_t MAX_DELAY = 300; //max delay 500ms
+	const uint8_t MIN_DELAY = 20; //min delay 10ms
+	const uint16_t MAX_ADC = 4096;
 	
 	//start ADC conversion
 	ADC1->CR |= ADC_CR_ADSTART;
 	
 	//wait for conversion to finish
 	while(ADC1->CR & ADC_CR_ADSTART) {
-		HAL_Delay(1);
+		//HAL_Delay(1);
 	}
 	data = ADC1->DR;
 	
-	return data * (MAX_DELAY-50) / 4096 + 50;
+	uint32_t temp = data * (MAX_DELAY - MIN_DELAY);
+	
+	return temp / MAX_ADC + MIN_DELAY;
 }
 
 /** System Clock Configuration
