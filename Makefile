@@ -29,7 +29,7 @@ PROJ_NAME=CanNode
 CC=arm-none-eabi-gcc
 OBJCOPY=arm-none-eabi-objcopy
 
-CFLAGS  = -g -Os -Wall -TSTM32F042F6_FLASH.ld
+CFLAGS  = -g -O0 -Wall -TSTM32F042F6_FLASH.ld
 CFLAGS += --specs=nosys.specs -mthumb -mcpu=cortex-m0 
 CFLAGS += -I.
 
@@ -60,5 +60,7 @@ clean:
 
 # Flash the STM32F4
 flash: all
-	sudo dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
+	dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
 
+stflash: all
+	st-flash write $(PROJ_NAME).bin 0x08000000
