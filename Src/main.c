@@ -28,12 +28,15 @@ static void MX_ADC_Init(void);
 int getDelay(uint16_t data);
 
 int main(void) {
-	CanTxMsgTypeDef frame;
-	CanRxMsgTypeDef rx_msg;
 	int tick;
-	int time_removed = 0;
-	uint16_t adcVal;
+	int timeRemoved = 0;
+#ifdef RECIEVE
+	CanRxMsgTypeDef rx_msg;
 	uint16_t canData=0;
+#else
+	CanTxMsgTypeDef frame;
+	uint16_t adcVal;
+#endif
 	uint32_t status;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
@@ -51,6 +54,7 @@ int main(void) {
 	//select IO1 for ADC conversion
 	ADC1->CHSELR = IO3_ADC;
 	
+#ifndef RECIEVE
 	//setup basic can frame
 	frame.StdId = 0x051;
 	frame.ExtId = 0;
@@ -64,6 +68,7 @@ int main(void) {
 	frame.Data[5] = 0;
 	frame.Data[6] = 0;
 	frame.Data[7] = 0;
+#endif
 
 	while (1) {
 #ifdef RECIEVE
@@ -71,33 +76,33 @@ int main(void) {
 		while(!is_can_msg_pending(CAN_FIFO0));
 		status = can_rx(&rx_msg, 3);
 		if(status == HAL_OK) {
-            canData = 0;
+		canData = 0;
 			canData =   rx_msg.Data[0];
 			//bit shift second byte of data then mask it
 			canData |= (rx_msg.Data[1] << 8) & 0xFF00;
 		}
 		tick = getDelay(canData);
 #else
-        //start ADC conversion
-	    ADC1->CR |= ADC_CR_ADSTART;
-	
-	    //wait for conversion to finish
-	    while(ADC1->CR & ADC_CR_ADSTART) {
-		    //HAL_Delay(1);
-	    }
-	    adcVal = ADC1->DR;
+		//start ADC conversion
+		ADC1->CR |= ADC_CR_ADSTART;
+
+		//wait for conversion to finish
+		while(ADC1->CR & ADC_CR_ADSTART) {
+			//HAL_Delay(1);
+		}
+		adcVal = ADC1->DR;
 		tick = getDelay(adcVal);
 		frame.Data[0] = 0xFF & adcVal;
 		frame.Data[1] = (0xFF00 & adcVal) >> 8;
 		can_tx(&frame, 10);//send can message
 #endif
 		
-		if(tick - time_removed <= 0){ //toggle lights
-			time_removed=0;
+		if(tick - timeRemoved <= 0){ //toggle lights
+			timeRemoved=0;
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
 		}
-		time_removed++; 
+		timeRemoved++; 
 
 		HAL_Delay(1);
 
