@@ -25,7 +25,7 @@ static void MX_GPIO_Init(void);
 static void MX_ADC_Init(void);
 
 /* Private function prototypes -----------------------------------------------*/
-int getDelay(uint16_t* adcVal);
+int getDelay(uint16_t data);
 
 int main(void) {
 	CanTxMsgTypeDef frame;
@@ -68,18 +68,25 @@ int main(void) {
 	while (1) {
 #ifdef RECIEVE
 		//check if there is a message
-		while(!is_can_msg_pending(CAN_FIFO0)){
-			//do nothing
-		};
+		while(!is_can_msg_pending(CAN_FIFO0));
 		status = can_rx(&rx_msg, 3);
 		if(status == HAL_OK) {
+            canData = 0;
 			canData =   rx_msg.Data[0];
 			//bit shift second byte of data then mask it
 			canData |= (rx_msg.Data[1] << 8) & 0xFF00;
 		}
 		tick = getDelay(canData);
 #else
-		tick = getDelay(&adcVal);
+        //start ADC conversion
+	    ADC1->CR |= ADC_CR_ADSTART;
+	
+	    //wait for conversion to finish
+	    while(ADC1->CR & ADC_CR_ADSTART) {
+		    //HAL_Delay(1);
+	    }
+	    adcVal = ADC1->DR;
+		tick = getDelay(adcVal);
 		frame.Data[0] = 0xFF & adcVal;
 		frame.Data[1] = (0xFF00 & adcVal) >> 8;
 		can_tx(&frame, 10);//send can message
@@ -90,9 +97,6 @@ int main(void) {
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
 		}
-		else if((time_removed & 2) == 2) {
-			LED1_GPIO_Port->ODR &= ~LED1_Pin;
-		}
 		time_removed++; 
 
 		HAL_Delay(1);
@@ -100,22 +104,13 @@ int main(void) {
 	}
 }
 
-int getDelay(uint16_t* adcVal){
+int getDelay(uint16_t data){
 
 	const uint16_t MAX_DELAY = 300; //max delay 500ms
 	const uint8_t MIN_DELAY = 20; //min delay 10ms
 	const uint16_t MAX_ADC = 4096;
 	
-	//start ADC conversion
-	ADC1->CR |= ADC_CR_ADSTART;
-	
-	//wait for conversion to finish
-	while(ADC1->CR & ADC_CR_ADSTART) {
-		//HAL_Delay(1);
-	}
-	*adcVal = ADC1->DR;
-	
-	uint32_t temp = (*adcVal) * (MAX_DELAY - MIN_DELAY);
+	uint32_t temp = (data) * (MAX_DELAY - MIN_DELAY);
 	
 	return temp / MAX_ADC + MIN_DELAY;
 }

@@ -29,7 +29,7 @@ PROJ_NAME=CanNode
 CC=arm-none-eabi-gcc
 OBJCOPY=arm-none-eabi-objcopy
 
-CFLAGS  = -g -O0 -Wall -TSTM32F042F6_FLASH.ld
+CFLAGS  = -Os -Wall -TSTM32F042F6_FLASH.ld
 CFLAGS += --specs=nosys.specs -mthumb -mcpu=cortex-m0 
 CFLAGS += -I.
 
