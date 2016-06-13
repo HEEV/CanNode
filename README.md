@@ -3,7 +3,7 @@
 
 ### What is this repository for? ###
 
-Code for the a sensor module that communicates over a CAN bus. 
+Code for a sensor module that communicates over a CAN bus. 
 Currently it is targeted for the stm32f042F6 uc, but will probably move to the stm32f042C6.
 For more information go to the [wiki](https://bitbucket.org/nebk/can-node/wiki/Home)
 
