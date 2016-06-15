@@ -22,8 +22,11 @@ sudo apt-get install gcc-arm-none-eabi
 
 ```
 1) Download code from bitbucket.
+
 2) Type make in the root directory to build the code.
+
 3) Type make flash to upload to the board over the dfu bootloader (when board is in dfu mode).
+
 ```
 make
 make flash
