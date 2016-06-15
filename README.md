@@ -21,9 +21,9 @@ for a debian based disto
 sudo apt-get install gcc-arm-none-eabi
 
 ```
-download code from bitbucket
-type make in the root directory to build the code.
-type make flash to upload to the board over the dfu bootloader (when board is in dfu mode).
+1) Download code from bitbucket.
+2) Type make in the root directory to build the code.
+3) Type make flash to upload to the board over the dfu bootloader (when board is in dfu mode).
 ```
 make
 make flash
