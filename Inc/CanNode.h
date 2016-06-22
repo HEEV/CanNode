@@ -7,11 +7,15 @@
  * Author: Samuel Ellicott
  * Date: 6-20-16
  */
+#ifndef _CAN_NODE_H_
+#define _CAN_NODE_H_
+
 #include <stdint.h>
+#include <stdbool.h>
 #include "can.h"
 
 
-enum CanNodeType {
+typedef enum {
 	RELAY		= 1264,
 	LED			= 1392,
 	MEGASQUIRT	= 1520,
@@ -19,15 +23,15 @@ enum CanNodeType {
 	PRESSURE	= 1648,
 	TEMPURATURE = 1664,
 	UNCONFIG	= 1984
-};
+} CanNodeType;
 
-enum CanNodePriority {
+typedef enum {
 	CAN_LOW_PRIORITY,
 	CAN_MED_PRIORITY,
 	CAN_HIGH_PRIORITY
-};
+} CanNodePriority;
 
-enum CanNodeDataType {
+typedef enum {
 	CAN_UINT8,
 	CAN_INT8,
 	CAN_UINT16,
@@ -36,19 +40,19 @@ enum CanNodeDataType {
 	CAN_INT32,
 	CAN_BIT_FIELD,
 	CAN_CUSTOM
-};
+} CanNodeDataType;
 
-enum CanNodeMsgType {
+typedef enum {
 	CAN_DATA,			//Normal operation, device is sending data to other nodes
 	CAN_DATA_MODE,		//Sent by master to enter data mode (default mode)
 	CAN_CONFIG_MODE,	//Sent by master to enter config mode
 	CAN_SET_ID,			//Sent by master to change the id of the node
 	CAN_ID_SET_ERROR,	//Error sent by node if the new id is not availible
 	CAN_CONFIG_ERROR	//General configuration error
-};
+} CanNodeMsgType;
 
 
-union CanNodeData {
+typedef union {
 	//8bit data
 	uint8_t uint8;
 	int8_t int8;
@@ -63,27 +67,30 @@ union CanNodeData {
 	int8_t int8_arr[7];
 	uint16_t uint16_arr[3];
 	int16_t int16_arr[3];
-};
+} CanNodeData;
 
-struct CanNodeMessage {
+typedef struct {
 	uint16_t id;
 	uint8_t len;
 	CanNodeDataType type;
 	CanNodeData data;
-};
+} CanNodeMessage;
 
 typedef void (*filterHandler)(CanNodeData* data);
 
 #define NUM_FILTERS 4
-struct CanNode {
+typedef struct {
 	uint16_t id;
 	uint8_t status;
 	uint16_t filters[NUM_FILTERS];
 	CanNodeType sensorType;
 	filterHandler handle;
-};
+} CanNode;
 
-uint16_t CanNode_Init(CanNode* node, CanNodeType type, CanNodePriority pri);
+uint16_t CanNode_init(CanNode* node, CanNodeType type, CanNodePriority pri);
 bool CanNode_addFilter(uint16_t filter);
 void CanNode_setFilterHandler(CanNode* node, filterHandler handle);
+void CanNode_CheckForMessages();
 bool CanNode_sendMessage(CanNode* node, const CanNodeMessage* msg);
+
+#endif //_CAN_NODE_H_
