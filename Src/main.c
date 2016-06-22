@@ -6,11 +6,12 @@
  * Date:	6-8-16
  */
 
-#include <stm32f0xx_hal.h>
-
+#include <stdint.h>
+#include "stm32f0xx_hal.h"
 #include <stdlib.h>
 #include <string.h>
 #include "can.h"
+#include "CanNode.h"
 
 #define IO1_ADC ADC_CHSELR_CHSEL6
 #define IO2_ADC ADC_CHSELR_CHSEL7
