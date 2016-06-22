@@ -31,7 +31,7 @@ OBJCOPY=arm-none-eabi-objcopy
 
 CFLAGS  = -Os -Wall -TSTM32F042F6_FLASH.ld
 CFLAGS += --specs=nosys.specs -mthumb -mcpu=cortex-m0 
-CFLAGS += -I.
+CFLAGS += -I. --std=gnu11
 
 # Include files from STM libraries
 CFLAGS += -I$(INC_DIR)

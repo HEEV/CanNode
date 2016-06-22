@@ -16,13 +16,13 @@
 
 
 typedef enum {
-	RELAY		= 1264,
-	LED			= 1392,
-	MEGASQUIRT	= 1520,
-	SWITCH		= 1584,
-	PRESSURE	= 1648,
+	RELAY       = 1264,
+	LED	        = 1392,
+	MEGASQUIRT  = 1520,
+	SWITCH	    = 1584,
+	PRESSURE    = 1648,
 	TEMPURATURE = 1664,
-	UNCONFIG	= 1984
+	UNCONFIG    = 1984
 } CanNodeType;
 
 typedef enum {
@@ -43,12 +43,12 @@ typedef enum {
 } CanNodeDataType;
 
 typedef enum {
-	CAN_DATA,			//Normal operation, device is sending data to other nodes
-	CAN_DATA_MODE,		//Sent by master to enter data mode (default mode)
-	CAN_CONFIG_MODE,	//Sent by master to enter config mode
-	CAN_SET_ID,			//Sent by master to change the id of the node
-	CAN_ID_SET_ERROR,	//Error sent by node if the new id is not availible
-	CAN_CONFIG_ERROR	//General configuration error
+	CAN_DATA,           //Normal operation, device is sending data to other nodes
+	CAN_DATA_MODE,      //Sent by master to enter data mode (default mode)
+	CAN_CONFIG_MODE,    //Sent by master to enter config mode
+	CAN_SET_ID,	        //Sent by master to change the id of the node
+	CAN_ID_SET_ERROR,   //Error sent by node if the new id is not availible
+	CAN_CONFIG_ERROR    //General configuration error
 } CanNodeMsgType;
 
 
@@ -76,7 +76,7 @@ typedef struct {
 	CanNodeData data;
 } CanNodeMessage;
 
-typedef void (*filterHandler)(CanNodeData* data);
+typedef void (*filterHandler)(CanNodeMessage* data);
 
 #define NUM_FILTERS 4
 typedef struct {
@@ -88,7 +88,7 @@ typedef struct {
 } CanNode;
 
 uint16_t CanNode_init(CanNode* node, CanNodeType type, CanNodePriority pri);
-bool CanNode_addFilter(uint16_t filter);
+bool CanNode_addFilter(CanNode* node, uint16_t filter);
 void CanNode_setFilterHandler(CanNode* node, filterHandler handle);
 void CanNode_CheckForMessages();
 bool CanNode_sendMessage(CanNode* node, const CanNodeMessage* msg);
