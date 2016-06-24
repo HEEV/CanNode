@@ -29,9 +29,10 @@ PROJ_NAME=CanNode
 CC=arm-none-eabi-gcc
 OBJCOPY=arm-none-eabi-objcopy
 
-CFLAGS  = -Os -Wall -TSTM32F042F6_FLASH.ld
+CFLAGS  = -Os -Wall  -TSTM32F042F6_FLASH.ld
 CFLAGS += --specs=nosys.specs -mthumb -mcpu=cortex-m0 
 CFLAGS += -I. --std=gnu11
+CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
 
 # Include files from STM libraries
 CFLAGS += -I$(INC_DIR)
