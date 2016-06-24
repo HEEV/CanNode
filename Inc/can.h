@@ -2,8 +2,9 @@
 #define _CAN_H
 
 #include <stm32f0xx_hal.h>
+#include <stdbool.h>
 
-enum can_bitrate {
+typedef enum {
 	CAN_BITRATE_10K,
 	CAN_BITRATE_20K,
 	CAN_BITRATE_50K,
@@ -13,20 +14,27 @@ enum can_bitrate {
 	CAN_BITRATE_500K,
 	CAN_BITRATE_750K,
 	CAN_BITRATE_1000K,
-};
+} can_bitrate;
 
-enum can_bus_state {
+typedef enum {
 	OFF_BUS,
 	ON_BUS
-};
+} can_bus_state;
+
+typedef struct {
+	uint16_t id;
+	uint8_t len;
+	bool rtr;
+	uint8_t data[8];
+} CanMessage;	
 
 void can_init(void);
 void can_enable(void);
 void can_disable(void);
-void can_set_bitrate(enum can_bitrate bitrate);
+void can_set_bitrate(can_bitrate bitrate);
 void can_set_silent(uint8_t silent);
-uint32_t can_tx(CanTxMsgTypeDef *tx_msg, uint32_t timeout);
-uint32_t can_rx(CanRxMsgTypeDef *rx_msg, uint32_t timeout);
+uint32_t can_tx(CanMessage *tx_msg, uint32_t timeout);
+uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout);
 uint8_t is_can_msg_pending(uint8_t fifo);
 
 #endif // _CAN_H

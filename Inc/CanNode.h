@@ -51,32 +51,13 @@ typedef enum {
 	CAN_CONFIG_ERROR    //General configuration error
 } CanNodeMsgType;
 
+typedef enum {
+	DATA_OK,
+	INVALID_TYPE,
+	DATA_OVERFLOW
+} CanNodeFmtError;
 
-typedef union {
-	//8bit data
-	uint8_t uint8;
-	int8_t int8;
-	//16bit data
-	uint16_t uint16;
-	int16_t int16;
-	//32bit data
-	uint32_t uint32;
-	int32_t int32;
-	//arrays of data
-	uint8_t uint8_arr[7];
-	int8_t int8_arr[7];
-	uint16_t uint16_arr[3];
-	int16_t int16_arr[3];
-} CanNodeData;
-
-typedef struct {
-	uint16_t id;
-	uint8_t len;
-	CanNodeDataType type;
-	CanNodeData data;
-} CanNodeMessage;
-
-typedef void (*filterHandler)(CanNodeMessage* data);
+typedef void (*filterHandler)(CanMessage* data);
 
 #define NUM_FILTERS 4
 typedef struct {
@@ -90,7 +71,35 @@ typedef struct {
 uint16_t CanNode_init(CanNode* node, CanNodeType type, CanNodePriority pri);
 bool CanNode_addFilter(CanNode* node, uint16_t filter);
 void CanNode_setFilterHandler(CanNode* node, filterHandler handle);
+
+//functions for setting data
+void CanNode_setData_int8   (CanMessage* msg,   int8_t data);
+void CanNode_setData_uint8  (CanMessage* msg,  uint8_t data);
+void CanNode_setData_int16  (CanMessage* msg,  int16_t data);
+void CanNode_setData_uint16 (CanMessage* msg, uint16_t data);
+void CanNode_setData_int32  (CanMessage* msg,  int32_t data);
+void CanNode_setData_uint32 (CanMessage* msg, uint32_t data);
+
+CanNodeFmtError CanNode_setDAtaArr_int8(CanMessage* msg, int8_t* data, uint8_t len);
+CanNodeFmtError CanNode_setDataArr_uint8(CanMessage* msg, uint8_t* data, uint8_t len);
+CanNodeFmtError CanNode_setDAtaArr_int16(CanMessage* msg, int16_t* data, uint8_t len);
+CanNodeFmtError CanNode_setDataArr_uint16(CanMessage* msg, uint16_t* data, uint8_t len);
+
+//functions for getting data
+CanNodeFmtError CanNode_getData_int8   (CanMessage* msg,   int8_t* data);
+CanNodeFmtError CanNode_getData_uint8  (CanMessage* msg,  uint8_t* data);
+CanNodeFmtError CanNode_getData_int16  (CanMessage* msg,  int16_t* data);
+CanNodeFmtError CanNode_getData_uint16 (CanMessage* msg, uint16_t* data);
+CanNodeFmtError CanNode_getData_int32  (CanMessage* msg,  int32_t* data);
+CanNodeFmtError CanNode_getData_uint32 (CanMessage* msg, uint32_t* data);
+
+CanNodeFmtError CanNode_getDataArr_int8(CanMessage* msg, int8_t data[7]);
+CanNodeFmtError CanNode_getDataArr_uint8(CanMessage* msg, uint8_t data[7]);
+CanNodeFmtError CanNode_getDataArr_int16(CanMessage* msg, int16_t data[2]);
+CanNodeFmtError CanNode_getDataArr_uint16(CanMessage* msg, uint16_t data[2]);
+
+
 void CanNode_CheckForMessages();
-bool CanNode_sendMessage(CanNode* node, const CanNodeMessage* msg);
+bool CanNode_sendMessage(CanNode* node, CanMessage* msg);
 
 #endif //_CAN_NODE_H_

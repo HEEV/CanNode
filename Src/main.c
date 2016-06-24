@@ -75,7 +75,7 @@ int main(void) {
 #ifdef RECIEVE
 		//check if there is a message
 		while(!is_can_msg_pending(CAN_FIFO0));
-		status = can_rx(&rx_msg, 3);
+//		status = can_rx(&rx_msg, 3);
 		if(status == HAL_OK) {
 		canData = 0;
 			canData =   rx_msg.Data[0];
@@ -95,7 +95,7 @@ int main(void) {
 		tick = getDelay(adcVal);
 		frame.Data[0] = 0xFF & adcVal;
 		frame.Data[1] = (0xFF00 & adcVal) >> 8;
-		can_tx(&frame, 10);//send can message
+//		can_tx(&frame, 10);//send can message
 #endif
 		
 		if(tick - timeRemoved <= 0){ //toggle lights
