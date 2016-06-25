@@ -16,6 +16,7 @@
 
 
 typedef enum {
+	ANALOG		= 1200,
 	RELAY       = 1264,
 	LED	        = 1392,
 	MEGASQUIRT  = 1520,
@@ -64,42 +65,39 @@ typedef struct {
 	uint16_t id;
 	uint8_t status;
 	uint16_t filters[NUM_FILTERS];
+	filterHandler handle[NUM_FILTERS];
 	CanNodeType sensorType;
-	filterHandler handle;
 } CanNode;
 
 uint16_t CanNode_init(CanNode* node, CanNodeType type, CanNodePriority pri);
-bool CanNode_addFilter(CanNode* node, uint16_t filter);
-void CanNode_setFilterHandler(CanNode* node, filterHandler handle);
+bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
 
 //functions for setting data
-void CanNode_setData_int8   (CanMessage* msg,   int8_t data);
-void CanNode_setData_uint8  (CanMessage* msg,  uint8_t data);
-void CanNode_setData_int16  (CanMessage* msg,  int16_t data);
-void CanNode_setData_uint16 (CanMessage* msg, uint16_t data);
-void CanNode_setData_int32  (CanMessage* msg,  int32_t data);
-void CanNode_setData_uint32 (CanMessage* msg, uint32_t data);
+void CanNode_sendData_int8   (CanNode* node,   int8_t data);
+void CanNode_sendData_uint8  (CanNode* node,  uint8_t data);
+void CanNode_sendData_int16  (CanNode* node,  int16_t data);
+void CanNode_sendData_uint16 (CanNode* node, uint16_t data);
+void CanNode_sendData_int32  (CanNode* node,  int32_t data);
+void CanNode_sendData_uint32 (CanNode* node, uint32_t data);
 
-CanNodeFmtError CanNode_setDAtaArr_int8(CanMessage* msg, int8_t* data, uint8_t len);
-CanNodeFmtError CanNode_setDataArr_uint8(CanMessage* msg, uint8_t* data, uint8_t len);
-CanNodeFmtError CanNode_setDAtaArr_int16(CanMessage* msg, int16_t* data, uint8_t len);
-CanNodeFmtError CanNode_setDataArr_uint16(CanMessage* msg, uint16_t* data, uint8_t len);
+CanNodeFmtError CanNode_sendDataArr_int8(CanNode* node, int8_t* data, uint8_t len);
+CanNodeFmtError CanNode_sendDataArr_uint8(CanNode* node, uint8_t* data, uint8_t len);
+CanNodeFmtError CanNode_sendDataArr_int16(CanNode* node, int16_t* data, uint8_t len);
+CanNodeFmtError CanNode_sendDataArr_uint16(CanNode* node, uint16_t* data, uint8_t len);
 
 //functions for getting data
-CanNodeFmtError CanNode_getData_int8   (CanMessage* msg,   int8_t* data);
-CanNodeFmtError CanNode_getData_uint8  (CanMessage* msg,  uint8_t* data);
-CanNodeFmtError CanNode_getData_int16  (CanMessage* msg,  int16_t* data);
-CanNodeFmtError CanNode_getData_uint16 (CanMessage* msg, uint16_t* data);
-CanNodeFmtError CanNode_getData_int32  (CanMessage* msg,  int32_t* data);
-CanNodeFmtError CanNode_getData_uint32 (CanMessage* msg, uint32_t* data);
+CanNodeFmtError CanNode_getData_int8   (CanNode* node,   int8_t* data);
+CanNodeFmtError CanNode_getData_uint8  (CanNode* node,  uint8_t* data);
+CanNodeFmtError CanNode_getData_int16  (CanNode* node,  int16_t* data);
+CanNodeFmtError CanNode_getData_uint16 (CanNode* node, uint16_t* data);
+CanNodeFmtError CanNode_getData_int32  (CanNode* node,  int32_t* data);
+CanNodeFmtError CanNode_getData_uint32 (CanNode* node, uint32_t* data);
 
-CanNodeFmtError CanNode_getDataArr_int8(CanMessage* msg, int8_t data[7]);
-CanNodeFmtError CanNode_getDataArr_uint8(CanMessage* msg, uint8_t data[7]);
-CanNodeFmtError CanNode_getDataArr_int16(CanMessage* msg, int16_t data[2]);
-CanNodeFmtError CanNode_getDataArr_uint16(CanMessage* msg, uint16_t data[2]);
+CanNodeFmtError CanNode_getDataArr_int8(CanNode* node, int8_t data[7]);
+CanNodeFmtError CanNode_getDataArr_uint8(CanNode* node, uint8_t data[7]);
+CanNodeFmtError CanNode_getDataArr_int16(CanNode* node, int16_t data[2]);
+CanNodeFmtError CanNode_getDataArr_uint16(CanNode* node, uint16_t data[2]);
 
-
-void CanNode_CheckForMessages();
-bool CanNode_sendMessage(CanNode* node, CanMessage* msg);
+void CanNode_checkForMessages();
 
 #endif //_CAN_NODE_H_
