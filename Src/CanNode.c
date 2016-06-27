@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include "../Inc/CanNode.h"
+#define UNUSED_FILTER 0xFFFF
 
 #define MAX_NODES 6
 static CanNode* nodes[MAX_NODES];
@@ -34,6 +35,10 @@ uint16_t CanNode_init(CanNode* node, CanNodeType type, CanNodePriority pri) {
 		return 0;//error
 	}
 	node->sensorType = type;
+	//reset filters
+	for(uint8_t i=0; i<NUM_FILTERS; ++i){
+		node->filters[i] = UNUSED_FILTER;
+	}
 
 	//TODO
 	//find id closest to the specified priority.
@@ -56,7 +61,7 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 
 	//add to the end of the list of filters... If there's room.
 	for(uint8_t i=0; i<NUM_FILTERS; ++i){
-		if(node->filters[i] != 0){
+		if(node->filters[i] == UNUSED_FILTER){
 			node->filters[i] = filter;
 			node->handle[i] = handle;
 			return true; //Sucess! Filter has been added
@@ -99,8 +104,8 @@ void CanNode_sendData_int16(CanNode* node, int16_t data) {
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_INT16) << 5) | (0x1F & CAN_DATA);
 	//data
-	msg.data[1] = (uint8_t) (data & 0x00ff);
-	msg.data[2] = (uint8_t) (data & 0xff00) >> 8;
+	msg.data[1] = (uint8_t)  (data & 0x00ff);
+	msg.data[2] = (uint8_t) ((data & 0xff00) >> 8);
 	//set other odds and ends
 	msg.len = 3;
 	msg.rtr = false;
@@ -113,8 +118,8 @@ void CanNode_sendData_uint16(CanNode* node, uint16_t data) {
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_UINT16) << 5) | (0x1F & CAN_DATA);
 	//data
-	msg.data[1] = (uint8_t) (data & 0x00ff);
-	msg.data[2] = (uint8_t) (data & 0xff00) >> 8;
+	msg.data[1] = (uint8_t)  (data & 0x00ff);
+	msg.data[2] = (uint8_t) ((data & 0xff00) >> 8);
 	//set other odds and ends
 	msg.len = 3;
 	msg.rtr = false;
@@ -127,10 +132,10 @@ void CanNode_sendData_int32(CanNode* node, int32_t data) {
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_INT32) << 5) | (0x1F & CAN_DATA);
 	//data
-	msg.data[1] = (uint8_t) (data & 0x000000ff);
-	msg.data[2] = (uint8_t) (data & 0x0000ff00) >> 8;
-	msg.data[3] = (uint8_t) (data & 0x00ff0000) >> 16;
-	msg.data[4] = (uint8_t) (data & 0xff000000) >> 24;
+	msg.data[1] = (uint8_t)  (data & 0x000000ff);
+	msg.data[2] = (uint8_t) ((data & 0x0000ff00) >> 8);
+	msg.data[3] = (uint8_t) ((data & 0x00ff0000) >> 16);
+	msg.data[4] = (uint8_t) ((data & 0xff000000) >> 24);
 	//set other odds and ends
 	msg.len = 5;
 	msg.rtr = false;
@@ -143,10 +148,10 @@ void CanNode_sendData_uint32(CanNode* node, uint32_t data) {
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_UINT32) << 5) | (0x1F & CAN_DATA);
 	//data
-	msg.data[1] = (uint8_t) (data & 0x000000ff);
-	msg.data[2] = (uint8_t) (data & 0x0000ff00) >> 8;
-	msg.data[3] = (uint8_t) (data & 0x00ff0000) >> 16;
-	msg.data[4] = (uint8_t) (data & 0xff000000) >> 24;
+	msg.data[1] = (uint8_t)  (data & 0x000000ff);
+	msg.data[2] = (uint8_t) ((data & 0x0000ff00) >> 8);
+	msg.data[3] = (uint8_t) ((data & 0x00ff0000) >> 16);
+	msg.data[4] = (uint8_t) ((data & 0xff000000) >> 24);
 	//set other odds and ends
 	msg.len = 5;
 	msg.rtr = false;
@@ -208,9 +213,9 @@ CanNodeFmtError CanNode_sendDataArr_int16(CanNode* node, int16_t* data, uint8_t 
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_INT16) << 5) | (0x1F & CAN_DATA);
 	//data
-	for(uint8_t i=0; i<len && i<7; ++i){
-		msg.data[i+1] = (uint8_t) (data[i] & 0x00ff);
-		msg.data[i+2] = (uint8_t) (data[i] & 0xff00) >> 8;
+	for(uint8_t i=0; i<len && i<2; ++i){
+		msg.data[i*2+1] = (uint8_t)  (data[i] & 0x00ff);
+		msg.data[i*2+2] = (uint8_t) ((data[i] & 0xff00) >> 8);
 	}
 
 	//set other odds and ends
@@ -231,9 +236,9 @@ CanNodeFmtError CanNode_sendDataArr_uint16(CanNode* node, uint16_t* data, uint8_
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_UINT16) << 5) | (0x1F & CAN_DATA);
 	//data
-	for(uint8_t i=0; i<len && i<7; ++i){
-		msg.data[i+1] = (uint8_t) (data[i] & 0x00ff);
-		msg.data[i+2] = (uint8_t) (data[i] & 0xff00) >> 8;
+	for(uint8_t i=0; i<len && i<2; ++i){
+		msg.data[i*2+1] = (uint8_t)  (data[i] & 0x00ff);
+		msg.data[i*2+2] = (uint8_t) ((data[i] & 0xff00) >> 8);
 	}
 
 	//set other odds and ends

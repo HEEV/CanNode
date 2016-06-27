@@ -18,7 +18,7 @@
 #define IO3_ADC ADC_CHSELR_CHSEL9
 
 //transmit code or recieve code
-//#define RECIEVE
+#define RECIEVE
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -28,6 +28,7 @@ static void MX_ADC_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 int getDelay(uint16_t data);
 void nodeHandler(CanMessage* data);
+void getFunky(CanMessage* data);
 uint16_t canData;
 CanNode node;
 
@@ -63,8 +64,9 @@ int main(void) {
 	hiNode.id = 0x7EF;
 #else
 	CanNode_init(&node, UNCONFIG, CAN_LOW_PRIORITY);
+	node.id = 0x7F0;
 	CanNode_addFilter(&node, 1200, nodeHandler);
-	CanNode_addFilter(&node, 0x7EF, nodeHandler);
+	CanNode_addFilter(&node, 0x7EF, getFunky);
 #endif
 
 	while (1) {
@@ -83,14 +85,16 @@ int main(void) {
 		adcVal = ADC1->DR;
 		tick = getDelay(adcVal);
 		CanNode_sendData_uint16(&node, adcVal);
-		char msg[4] = "Hi!";
-		CanNode_sendDataArr_int8(&hiNode, (int8_t*) msg, 3);
 #endif
 		
 		if(tick - timeRemoved <= 0){ //toggle lights
 			timeRemoved=0;
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
+#ifndef RECIEVE
+			char msg[4] = "Hi!";
+			CanNode_sendDataArr_int8(&hiNode, (int8_t*) msg, 3);
+#endif
 		}
 		timeRemoved++; 
 
@@ -111,16 +115,14 @@ int getDelay(uint16_t data){
 }
 
 void nodeHandler(CanMessage* data){
-	if(data->id == 1200){
-		canData = 0;
-		canData = data->data[0];
-		//bit shift second byte of data then mask it
-		canData |= (data->data[1] << 8) & 0xFF00;
-	}
-	else{
+	canData = data->data[1];
+	//bit shift second byte of data then mask it
+	canData |= data->data[2] << 8;
+}
+
+void getFunky(CanMessage* data){
 		char msg[6] = "Poke!";
 		CanNode_sendDataArr_int8(&node, (int8_t*) msg, 6);
-	}
 }
 
 /** System Clock Configuration
