@@ -6,11 +6,12 @@
  * Date:	6-8-16
  */
 
-#include <stm32f0xx_hal.h>
-
+#include <stdint.h>
+#include "stm32f0xx_hal.h"
 #include <stdlib.h>
 #include <string.h>
-#include "can.h"
+#include "../Inc/can.h"
+#include "../Inc/CanNode.h"
 
 #define IO1_ADC ADC_CHSELR_CHSEL6
 #define IO2_ADC ADC_CHSELR_CHSEL7
@@ -26,14 +27,20 @@ static void MX_ADC_Init(void);
 
 /* Private function prototypes -----------------------------------------------*/
 int getDelay(uint16_t data);
+void nodeHandler(CanMessage* data);
+void getFunky(CanMessage* data);
+uint16_t canData;
+CanNode node;
 
 int main(void) {
-	CanTxMsgTypeDef frame;
-	CanRxMsgTypeDef rx_msg;
 	int tick;
-	int time_removed = 0;
+	int timeRemoved = 0;
+#ifdef RECIEVE
+	CanMessage rx_msg;
+#else
+	CanNode hiNode;
 	uint16_t adcVal;
-	uint16_t canData=0;
+#endif
 	uint32_t status;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
@@ -45,59 +52,54 @@ int main(void) {
 	// Initialize all configured peripherals
 	MX_GPIO_Init();
 	MX_ADC_Init();
-	can_init();
-	can_enable();
 
 	//select IO1 for ADC conversion
 	ADC1->CHSELR = IO3_ADC;
 	
+#ifndef RECIEVE
 	//setup basic can frame
-	frame.StdId = 0x051;
-	frame.ExtId = 0;
-	frame.RTR = CAN_RTR_DATA;
-	frame.IDE = CAN_ID_STD;
-	frame.DLC = 2; //two bytes of data
-	//clean up rest of data buffer
-	frame.Data[2] = 0;
-	frame.Data[3] = 0;
-	frame.Data[4] = 0;
-	frame.Data[5] = 0;
-	frame.Data[6] = 0;
-	frame.Data[7] = 0;
+	CanNode_init(&node, ANALOG, CAN_LOW_PRIORITY);
+	node.id = 1200;
+	CanNode_init(&hiNode, UNCONFIG, CAN_LOW_PRIORITY);
+	hiNode.id = 0x7EF;
+#else
+	CanNode_init(&node, UNCONFIG, CAN_LOW_PRIORITY);
+	node.id = 0x7F0;
+	CanNode_addFilter(&node, 1200, nodeHandler);
+	CanNode_addFilter(&node, 0x7EF, getFunky);
+#endif
 
 	while (1) {
 #ifdef RECIEVE
+		CanNode_checkForMessages();
 		//check if there is a message
-		while(!is_can_msg_pending(CAN_FIFO0));
-		status = can_rx(&rx_msg, 3);
-		if(status == HAL_OK) {
-            canData = 0;
-			canData =   rx_msg.Data[0];
-			//bit shift second byte of data then mask it
-			canData |= (rx_msg.Data[1] << 8) & 0xFF00;
-		}
 		tick = getDelay(canData);
 #else
-        //start ADC conversion
-	    ADC1->CR |= ADC_CR_ADSTART;
-	
-	    //wait for conversion to finish
-	    while(ADC1->CR & ADC_CR_ADSTART) {
-		    //HAL_Delay(1);
-	    }
-	    adcVal = ADC1->DR;
+		//start ADC conversion
+		ADC1->CR |= ADC_CR_ADSTART;
+
+		//wait for conversion to finish
+		while(ADC1->CR & ADC_CR_ADSTART) {
+			//HAL_Delay(1);
+		}
+		adcVal = ADC1->DR;
 		tick = getDelay(adcVal);
-		frame.Data[0] = 0xFF & adcVal;
-		frame.Data[1] = (0xFF00 & adcVal) >> 8;
-		can_tx(&frame, 10);//send can message
+
+		if(timeRemoved % 5 == 0){
+			CanNode_sendData_uint16(&node, adcVal);
+		}
 #endif
 		
-		if(tick - time_removed <= 0){ //toggle lights
-			time_removed=0;
+		if(tick - timeRemoved <= 0){ //toggle lights
+			timeRemoved=0;
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
+#ifndef RECIEVE
+			int8_t msg[4] = "Hi!";
+			CanNode_sendDataArr_int8(&hiNode, msg, 3);
+#endif
 		}
-		time_removed++; 
+		timeRemoved++; 
 
 		HAL_Delay(1);
 
@@ -113,6 +115,17 @@ int getDelay(uint16_t data){
 	uint32_t temp = (data) * (MAX_DELAY - MIN_DELAY);
 	
 	return temp / MAX_ADC + MIN_DELAY;
+}
+
+void nodeHandler(CanMessage* data){
+	canData = data->data[1];
+	//bit shift second byte of data then mask it
+	canData |= data->data[2] << 8;
+}
+
+void getFunky(CanMessage* data){
+		int8_t msg[6] = "Punk!";
+		CanNode_sendDataArr_int8(&node, msg, 5);
 }
 
 /** System Clock Configuration

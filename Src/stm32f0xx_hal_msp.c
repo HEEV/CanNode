@@ -34,19 +34,11 @@
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f0xx_hal.h"
 
-/* USER CODE BEGIN 0 */
-
-/* USER CODE END 0 */
-
 /**
   * Initializes the Global MSP.
   */
 void HAL_MspInit(void)
 {
-  /* USER CODE BEGIN MspInit 0 */
-
-  /* USER CODE END MspInit 0 */
-
   __HAL_RCC_SYSCFG_CLK_ENABLE();
 
   /* System interrupt init*/
@@ -54,70 +46,6 @@ void HAL_MspInit(void)
   HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 
   __HAL_REMAP_PIN_ENABLE(HAL_REMAP_PA11_PA12);
-
-  /* USER CODE BEGIN MspInit 1 */
-
-  /* USER CODE END MspInit 1 */
-}
-
-void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
-{
-
-  GPIO_InitTypeDef GPIO_InitStruct;
-  if(hadc->Instance==ADC1)
-  {
-  /* USER CODE BEGIN ADC1_MspInit 0 */
-
-  /* USER CODE END ADC1_MspInit 0 */
-    /* Peripheral clock enable */
-    __HAL_RCC_ADC1_CLK_ENABLE();
-  
-    /**ADC GPIO Configuration    
-    PA6     ------> ADC_IN6
-    PA7     ------> ADC_IN7
-    PB1     ------> ADC_IN9 
-    */
-    GPIO_InitStruct.Pin = IO1_Pin|IO2_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    GPIO_InitStruct.Pin = IO3_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(IO3_GPIO_Port, &GPIO_InitStruct);
-
-  /* USER CODE BEGIN ADC1_MspInit 1 */
-
-  /* USER CODE END ADC1_MspInit 1 */
-  }
-
-}
-
-void HAL_ADC_MspDeInit(ADC_HandleTypeDef* hadc)
-{
-
-  if(hadc->Instance==ADC1)
-  {
-  /* USER CODE BEGIN ADC1_MspDeInit 0 */
-
-  /* USER CODE END ADC1_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_ADC1_CLK_DISABLE();
-  
-    /**ADC GPIO Configuration    
-    PA6     ------> ADC_IN6
-    PA7     ------> ADC_IN7
-    PB1     ------> ADC_IN9 
-    */
-    HAL_GPIO_DeInit(GPIOA, IO1_Pin|IO2_Pin);
-
-    HAL_GPIO_DeInit(IO3_GPIO_Port, IO3_Pin);
-
-  }
-  /* USER CODE BEGIN ADC1_MspDeInit 1 */
-
-  /* USER CODE END ADC1_MspDeInit 1 */
 
 }
 
@@ -127,9 +55,6 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* hcan)
   GPIO_InitTypeDef GPIO_InitStruct;
   if(hcan->Instance==CAN)
   {
-  /* USER CODE BEGIN CAN_MspInit 0 */
-
-  /* USER CODE END CAN_MspInit 0 */
     /* Peripheral clock enable */
     __HAL_RCC_CAN1_CLK_ENABLE();
   
@@ -144,9 +69,6 @@ void HAL_CAN_MspInit(CAN_HandleTypeDef* hcan)
     GPIO_InitStruct.Alternate = GPIO_AF4_CAN;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-  /* USER CODE BEGIN CAN_MspInit 1 */
-
-  /* USER CODE END CAN_MspInit 1 */
   }
 
 }
@@ -156,9 +78,6 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* hcan)
 
   if(hcan->Instance==CAN)
   {
-  /* USER CODE BEGIN CAN_MspDeInit 0 */
-
-  /* USER CODE END CAN_MspDeInit 0 */
     /* Peripheral clock disable */
     __HAL_RCC_CAN1_CLK_DISABLE();
   
@@ -169,22 +88,6 @@ void HAL_CAN_MspDeInit(CAN_HandleTypeDef* hcan)
     HAL_GPIO_DeInit(GPIOA, GPIO_PIN_11|GPIO_PIN_12);
 
   }
-  /* USER CODE BEGIN CAN_MspDeInit 1 */
-
-  /* USER CODE END CAN_MspDeInit 1 */
-
 }
-
-/* USER CODE BEGIN 1 */
-
-/* USER CODE END 1 */
-
-/**
-  * @}
-  */
-
-/**
-  * @}
-  */
 
 /************************ (C) COPYRIGHT STMicroelectronics *****END OF FILE****/
