@@ -169,7 +169,7 @@ CanNodeFmtError CanNode_sendDataArr_int8(CanNode* node, int8_t* data, uint8_t le
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_INT8) << 5) | (0x1F & CAN_DATA);
 	//data
-	for(uint8_t i=0; i<len && i<7; ++i){
+	for(uint8_t i=0; i<len; ++i){
 		msg.data[i+1] = (uint8_t) data[i];
 	}
 
@@ -191,7 +191,7 @@ CanNodeFmtError CanNode_sendDataArr_uint8(CanNode* node, uint8_t* data, uint8_t 
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_UINT8) << 5) | (0x1F & CAN_DATA);
 	//data
-	for(uint8_t i=0; i<len && i<7; ++i){
+	for(uint8_t i=0; i<len; ++i){
 		msg.data[i+1] = data[i];
 	}
 
@@ -213,7 +213,7 @@ CanNodeFmtError CanNode_sendDataArr_int16(CanNode* node, int16_t* data, uint8_t 
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_INT16) << 5) | (0x1F & CAN_DATA);
 	//data
-	for(uint8_t i=0; i<len && i<2; ++i){
+	for(uint8_t i=0; i<len; ++i){
 		msg.data[i*2+1] = (uint8_t)  (data[i] & 0x00ff);
 		msg.data[i*2+2] = (uint8_t) ((data[i] & 0xff00) >> 8);
 	}
@@ -236,7 +236,7 @@ CanNodeFmtError CanNode_sendDataArr_uint16(CanNode* node, uint16_t* data, uint8_
 	//configuration byte
 	msg.data[0] = (uint8_t) ((0x7 & CAN_UINT16) << 5) | (0x1F & CAN_DATA);
 	//data
-	for(uint8_t i=0; i<len && i<2; ++i){
+	for(uint8_t i=0; i<len; ++i){
 		msg.data[i*2+1] = (uint8_t)  (data[i] & 0x00ff);
 		msg.data[i*2+2] = (uint8_t) ((data[i] & 0xff00) >> 8);
 	}

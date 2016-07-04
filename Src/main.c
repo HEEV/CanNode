@@ -84,7 +84,10 @@ int main(void) {
 		}
 		adcVal = ADC1->DR;
 		tick = getDelay(adcVal);
-		CanNode_sendData_uint16(&node, adcVal);
+
+		if(timeRemoved % 5 == 0){
+			CanNode_sendData_uint16(&node, adcVal);
+		}
 #endif
 		
 		if(tick - timeRemoved <= 0){ //toggle lights
@@ -92,8 +95,8 @@ int main(void) {
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
 #ifndef RECIEVE
-			char msg[4] = "Hi!";
-			CanNode_sendDataArr_int8(&hiNode, (int8_t*) msg, 3);
+			int8_t msg[4] = "Hi!";
+			CanNode_sendDataArr_int8(&hiNode, msg, 3);
 #endif
 		}
 		timeRemoved++; 
@@ -121,8 +124,8 @@ void nodeHandler(CanMessage* data){
 }
 
 void getFunky(CanMessage* data){
-		char msg[6] = "Poke!";
-		CanNode_sendDataArr_int8(&node, (int8_t*) msg, 6);
+		int8_t msg[6] = "Punk!";
+		CanNode_sendDataArr_int8(&node, msg, 5);
 }
 
 /** System Clock Configuration
