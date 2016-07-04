@@ -92,24 +92,44 @@ void can_set_silent(uint8_t silent) {
 	}
 }
 
-uint32_t can_tx(CanMessage *tx_msg, uint32_t timeout) {
-	//TODO do hardware stuff here
-	CanTxMsgTypeDef temp;
-	uint32_t status;
+can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout) {
+	uint8_t mailbox;
 
-	temp.StdId = tx_msg->id;
-	temp.ExtId = 0;
-	temp.RTR = (tx_msg->rtr) ? CAN_RTR_REMOTE : CAN_RTR_DATA;
-	temp.IDE = CAN_ID_STD;
-	temp.DLC = tx_msg->len;
-    for(uint8_t i=0; i<8; ++i){
-		temp.Data[i] = tx_msg->data[i];
+	//find an empty mailbox
+	for(mailbox=0; mailbox<3; ++mailbox){
+		//check the status
+		if(CAN->sTxMailBox[mailbox].TIR & CAN_TI0R_TXRQ) {
+		   	continue; 
+		}
+		else {
+			break;//found open mailbox
+		}
 	}
-	// transmit can frame
-	hcan.pTxMsg = &temp;
-	status = HAL_CAN_Transmit(&hcan, timeout);
 
-	return status;
+	//if there are no open mailboxes
+	if(mailbox == 3) {
+		return BUSY_BUS;
+	}
+
+	//add data to register
+	CAN->sTxMailBox[mailbox].TIR = (uint32_t) tx_msg->id << 21;
+	if(CAN_RTR_REMOTE){
+		CAN->sTxMailBox[mailbox].TIR |= CAN_TI0R_RTR;
+	}
+	
+	CAN->sTxMailBox[mailbox].TDTR = tx_msg->len & 0x0F;
+
+	//clear mailbox and add new data
+	CAN->sTxMailBox[mailbox].TDHR = 0;
+	CAN->sTxMailBox[mailbox].TDLR = 0;
+    for(uint8_t i=0; i<4; ++i){
+		CAN->sTxMailBox[mailbox].TDHR |= tx_msg->data[i+4] << (8*i);
+		CAN->sTxMailBox[mailbox].TDLR |= tx_msg->data[i] << (8*i);
+	}
+	//transmit can frame
+	CAN->sTxMailBox[mailbox].TIR |= CAN_TI0R_TXRQ;
+
+	return ON_BUS;
 }
 
 uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
