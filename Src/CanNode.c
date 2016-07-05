@@ -9,7 +9,7 @@
 #include "../Inc/CanNode.h"
 #define UNUSED_FILTER 0xFFFF
 
-#define MAX_NODES 6
+
 static CanNode* nodes[MAX_NODES];
 static bool newMessage; 
 static CanMessage tmpMsg;

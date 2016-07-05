@@ -35,13 +35,11 @@ CanNode node;
 int main(void) {
 	int tick;
 	int timeRemoved = 0;
-#ifdef RECIEVE
-	CanMessage rx_msg;
-#else
+#ifndef RECIEVE
 	CanNode hiNode;
 	uint16_t adcVal;
 #endif
-	uint32_t status;
+	//uint32_t status;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
 	HAL_Init();

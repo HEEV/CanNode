@@ -14,6 +14,13 @@
 #include <stdbool.h>
 #include "can.h"
 
+#ifndef MAX_NODES
+	#define MAX_NODES 3
+#endif
+
+#ifndef NUM_FILTERS
+	#define NUM_FILTERS 4
+#endif
 
 typedef enum {
 	ANALOG		= 1200,
@@ -55,12 +62,11 @@ typedef enum {
 typedef enum {
 	DATA_OK,
 	INVALID_TYPE,
-	DATA_OVERFLOW
+	DATA_OVERFLOW,
 } CanNodeFmtError;
 
 typedef void (*filterHandler)(CanMessage* data);
 
-#define NUM_FILTERS 4
 typedef struct {
 	uint16_t id;
 	uint8_t status;
