@@ -17,10 +17,10 @@ typedef enum {
 } can_bitrate;
 
 typedef enum {
-	OFF_BUS,
-	ON_BUS,
-	BUSY_BUS,
-	NO_DATA
+	BUS_OK,
+	BUS_BUSY,
+	NO_DATA,
+	BUS_OFF
 } can_bus_state;
 
 typedef struct {

@@ -25,11 +25,11 @@ void can_init(void) {
 	// default to 125 kbit/s
 	prescaler = 48;
 	hcan.Instance = CAN;
-	bus_state = OFF_BUS;
+	bus_state = BUS_OFF;
 }
 
 void can_enable(void) {
-	if (bus_state == OFF_BUS) {
+	if (bus_state == BUS_OFF) {
 		hcan.Init.Prescaler = prescaler;
 		hcan.Init.Mode = CAN_MODE_NORMAL;
 		hcan.Init.SJW = CAN_SJW_1TQ;
@@ -44,7 +44,7 @@ void can_enable(void) {
 		hcan.pTxMsg = NULL;
 		HAL_CAN_Init(&hcan);
 		HAL_CAN_ConfigFilter(&hcan, &filter);
-		bus_state = ON_BUS;
+		bus_state = BUS_OK;
 	}
 }
 
@@ -81,7 +81,7 @@ void can_set_bitrate(can_bitrate bitrate) {
 }
 
 void can_set_silent(uint8_t silent) {
-	if (bus_state == ON_BUS) {
+	if (bus_state != BUS_OFF) {
 		// cannot set silent mode while on bus
 		return;
 	}
@@ -108,7 +108,7 @@ can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout) {
 
 	//if there are no open mailboxes
 	if(mailbox == 3) {
-		return BUSY_BUS;
+		return BUS_BUSY;
 	}
 
 	//add data to register
@@ -129,7 +129,7 @@ can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout) {
 	//transmit can frame
 	CAN->sTxMailBox[mailbox].TIR |= CAN_TI0R_TXRQ;
 
-	return ON_BUS;
+	return BUS_OK;
 }
 
 uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
@@ -162,11 +162,11 @@ uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
 	//clear fifo
 	CAN->RF0R |= CAN_RF0R_RFOM0;
 
-	return ON_BUS;
+	return BUS_OK;
 }
 
 uint8_t is_can_msg_pending(uint8_t fifo) {
-	if (bus_state == OFF_BUS) {
+	if (bus_state == BUS_OFF) {
 		return 0;
 	}
 	return (__HAL_CAN_MSG_PENDING(&hcan, fifo) > 0);
