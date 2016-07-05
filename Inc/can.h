@@ -19,7 +19,8 @@ typedef enum {
 typedef enum {
 	OFF_BUS,
 	ON_BUS,
-	BUSY_BUS
+	BUSY_BUS,
+	NO_DATA
 } can_bus_state;
 
 typedef struct {

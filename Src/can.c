@@ -113,7 +113,7 @@ can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout) {
 
 	//add data to register
 	CAN->sTxMailBox[mailbox].TIR = (uint32_t) tx_msg->id << 21;
-	if(CAN_RTR_REMOTE){
+	if(tx_msg->rtr){
 		CAN->sTxMailBox[mailbox].TIR |= CAN_TI0R_RTR;
 	}
 	
@@ -133,22 +133,36 @@ can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout) {
 }
 
 uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
-    CanRxMsgTypeDef temp;
-	uint32_t status;
-	hcan.pRxMsg = &temp;
+	//TODO write code to check in both fifos
+	uint8_t fifoNum = 0;
 
-	status = HAL_CAN_Receive(&hcan, CAN_FIFO0, timeout);
-
-	//transfer to struct
-	rx_msg->id = temp.StdId; 
-	rx_msg->rtr = temp.RTR==CAN_RTR_REMOTE;
-	rx_msg->len = temp.DLC;
-
-    for(uint8_t i=0; i<8; ++i){
-		rx_msg->data[i] = temp.Data[i];
+	//check if there is data in fifo0
+	if((CAN->RF0R & CAN_RF0R_FMP0) == 0){ //if there is no data
+		return NO_DATA;
 	}
 
-	return status;
+	//get data from regisers
+	//get the id field
+	rx_msg->id = (uint16_t) CAN->sFIFOMailBox[fifoNum].RIR >> 21;
+
+	//check if it is a rtr message
+	rx_msg->rtr = false;
+	if(CAN->sFIFOMailBox[fifoNum].RIR & CAN_RI0R_RTR){ 
+		rx_msg->rtr = true;
+	}
+	
+	//get data length
+	rx_msg->len = (uint8_t) CAN->sFIFOMailBox[fifoNum].RDTR & CAN_RDT0R_DLC;
+
+	//get the data
+    for(uint8_t i=0; i<4; ++i){
+		rx_msg->data[i+4] = (uint8_t) CAN->sFIFOMailBox[fifoNum].RDHR >> (8*i);
+		rx_msg->data[i]   = (uint8_t) CAN->sFIFOMailBox[fifoNum].RDLR >> (8*i);
+	}
+	//clear fifo
+	CAN->RF0R |= CAN_RF0R_RFOM0;
+
+	return ON_BUS;
 }
 
 uint8_t is_can_msg_pending(uint8_t fifo) {
