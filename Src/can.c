@@ -25,11 +25,11 @@ void can_init(void) {
 	// default to 125 kbit/s
 	prescaler = 48;
 	hcan.Instance = CAN;
-	bus_state = OFF_BUS;
+	bus_state = BUS_OFF;
 }
 
 void can_enable(void) {
-	if (bus_state == OFF_BUS) {
+	if (bus_state == BUS_OFF) {
 		hcan.Init.Prescaler = prescaler;
 		hcan.Init.Mode = CAN_MODE_NORMAL;
 		hcan.Init.SJW = CAN_SJW_1TQ;
@@ -44,7 +44,7 @@ void can_enable(void) {
 		hcan.pTxMsg = NULL;
 		HAL_CAN_Init(&hcan);
 		HAL_CAN_ConfigFilter(&hcan, &filter);
-		bus_state = ON_BUS;
+		bus_state = BUS_OK;
 	}
 }
 
@@ -81,7 +81,7 @@ void can_set_bitrate(can_bitrate bitrate) {
 }
 
 void can_set_silent(uint8_t silent) {
-	if (bus_state == ON_BUS) {
+	if (bus_state != BUS_OFF) {
 		// cannot set silent mode while on bus
 		return;
 	}
@@ -92,47 +92,81 @@ void can_set_silent(uint8_t silent) {
 	}
 }
 
-uint32_t can_tx(CanMessage *tx_msg, uint32_t timeout) {
-	//TODO do hardware stuff here
-	CanTxMsgTypeDef temp;
-	uint32_t status;
+can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout) {
+	uint8_t mailbox;
 
-	temp.StdId = tx_msg->id;
-	temp.ExtId = 0;
-	temp.RTR = (tx_msg->rtr) ? CAN_RTR_REMOTE : CAN_RTR_DATA;
-	temp.IDE = CAN_ID_STD;
-	temp.DLC = tx_msg->len;
-    for(uint8_t i=0; i<8; ++i){
-		temp.Data[i] = tx_msg->data[i];
+	//find an empty mailbox
+	for(mailbox=0; mailbox<3; ++mailbox){
+		//check the status
+		if(CAN->sTxMailBox[mailbox].TIR & CAN_TI0R_TXRQ) {
+		   	continue; 
+		}
+		else {
+			break;//found open mailbox
+		}
 	}
-	// transmit can frame
-	hcan.pTxMsg = &temp;
-	status = HAL_CAN_Transmit(&hcan, timeout);
 
-	return status;
+	//if there are no open mailboxes
+	if(mailbox == 3) {
+		return BUS_BUSY;
+	}
+
+	//add data to register
+	CAN->sTxMailBox[mailbox].TIR = (uint32_t) tx_msg->id << 21;
+	if(tx_msg->rtr){
+		CAN->sTxMailBox[mailbox].TIR |= CAN_TI0R_RTR;
+	}
+	
+	CAN->sTxMailBox[mailbox].TDTR = tx_msg->len & 0x0F;
+
+	//clear mailbox and add new data
+	CAN->sTxMailBox[mailbox].TDHR = 0;
+	CAN->sTxMailBox[mailbox].TDLR = 0;
+    for(uint8_t i=0; i<4; ++i){
+		CAN->sTxMailBox[mailbox].TDHR |= tx_msg->data[i+4] << (8*i);
+		CAN->sTxMailBox[mailbox].TDLR |= tx_msg->data[i] << (8*i);
+	}
+	//transmit can frame
+	CAN->sTxMailBox[mailbox].TIR |= CAN_TI0R_TXRQ;
+
+	return BUS_OK;
 }
 
 uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
-    CanRxMsgTypeDef temp;
-	uint32_t status;
-	hcan.pRxMsg = &temp;
+	//TODO write code to check in both fifos
+	uint8_t fifoNum = 0;
 
-	status = HAL_CAN_Receive(&hcan, CAN_FIFO0, timeout);
-
-	//transfer to struct
-	rx_msg->id = temp.StdId; 
-	rx_msg->rtr = temp.RTR==CAN_RTR_REMOTE;
-	rx_msg->len = temp.DLC;
-
-    for(uint8_t i=0; i<8; ++i){
-		rx_msg->data[i] = temp.Data[i];
+	//check if there is data in fifo0
+	if((CAN->RF0R & CAN_RF0R_FMP0) == 0){ //if there is no data
+		return NO_DATA;
 	}
 
-	return status;
+	//get data from regisers
+	//get the id field
+	rx_msg->id = (uint16_t) (CAN->sFIFOMailBox[fifoNum].RIR >> 21);
+
+	//check if it is a rtr message
+	rx_msg->rtr = false;
+	if(CAN->sFIFOMailBox[fifoNum].RIR & CAN_RI0R_RTR){ 
+		rx_msg->rtr = true;
+	}
+	
+	//get data length
+	rx_msg->len = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDTR & CAN_RDT0R_DLC);
+
+	//get the data
+    for(uint8_t i=0; i<4; ++i){
+		rx_msg->data[i+4] = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDHR >> (8*i));
+		rx_msg->data[i]   = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDLR >> (8*i));
+	}
+	//clear fifo
+	CAN->RF0R |= CAN_RF0R_RFOM0;
+
+	return BUS_OK;
 }
 
 uint8_t is_can_msg_pending(uint8_t fifo) {
-	if (bus_state == OFF_BUS) {
+	if (bus_state == BUS_OFF) {
 		return 0;
 	}
 	return (__HAL_CAN_MSG_PENDING(&hcan, fifo) > 0);

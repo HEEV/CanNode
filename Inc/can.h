@@ -17,8 +17,10 @@ typedef enum {
 } can_bitrate;
 
 typedef enum {
-	OFF_BUS,
-	ON_BUS
+	BUS_OK,
+	BUS_BUSY,
+	NO_DATA,
+	BUS_OFF
 } can_bus_state;
 
 typedef struct {
@@ -33,7 +35,7 @@ void can_enable(void);
 void can_disable(void);
 void can_set_bitrate(can_bitrate bitrate);
 void can_set_silent(uint8_t silent);
-uint32_t can_tx(CanMessage *tx_msg, uint32_t timeout);
+can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout);
 uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout);
 uint8_t is_can_msg_pending(uint8_t fifo);
 

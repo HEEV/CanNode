@@ -9,7 +9,7 @@
 #include "../Inc/CanNode.h"
 #define UNUSED_FILTER 0xFFFF
 
-#define MAX_NODES 6
+
 static CanNode* nodes[MAX_NODES];
 static bool newMessage; 
 static CanMessage tmpMsg;
@@ -246,6 +246,88 @@ CanNodeFmtError CanNode_sendDataArr_uint16(CanNode* node, uint16_t* data, uint8_
 	msg.rtr = false;
 	msg.id = node->id;
 	can_tx(&msg, 5); 
+	return DATA_OK;
+}
+
+CanNodeFmtError CanNode_getData_int8(const CanMessage* msg, int8_t* data) {
+
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_INT8 ||   //not right type
+	    msg->len != 2                  ||   //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){ //not data
+
+		return INVALID_TYPE;
+	}
+
+	//data
+	*data = (int8_t) msg->data[1];
+
+	return DATA_OK;
+}
+
+CanNodeFmtError CanNode_getData_uint8(const CanMessage* msg, uint8_t* data) {
+
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_UINT8 ||  //not right type
+	    msg->len != 2                   ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){ //not data
+
+		return INVALID_TYPE;
+	}
+
+	//data
+	*data = msg->data[1];
+
+	return DATA_OK;
+}
+
+CanNodeFmtError CanNode_getData_int16(const CanMessage* msg, int16_t* data) {
+
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_INT16 ||  //not right type
+	    msg->len != 3                   ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){ //not data
+
+		return INVALID_TYPE;
+	}
+
+	//data
+	*data  = (int16_t)  msg->data[1];
+	*data |= (int16_t) (msg->data[2] << 8);
+
+	return DATA_OK;
+}
+
+CanNodeFmtError CanNode_getData_uint16(const CanMessage* msg, uint16_t* data) {
+
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_UINT16 ||  //not right type
+	    msg->len != 3                    ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){ //not data
+
+		return INVALID_TYPE;
+	}
+
+	//data
+	*data  = (uint16_t)  msg->data[1];
+	*data |= (uint16_t) (msg->data[2] << 8);
+
 	return DATA_OK;
 }
 

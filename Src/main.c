@@ -35,13 +35,11 @@ CanNode node;
 int main(void) {
 	int tick;
 	int timeRemoved = 0;
-#ifdef RECIEVE
-	CanMessage rx_msg;
-#else
+#ifndef RECIEVE
 	CanNode hiNode;
 	uint16_t adcVal;
 #endif
-	uint32_t status;
+	//uint32_t status;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
 	HAL_Init();
@@ -118,9 +116,7 @@ int getDelay(uint16_t data){
 }
 
 void nodeHandler(CanMessage* data){
-	canData = data->data[1];
-	//bit shift second byte of data then mask it
-	canData |= data->data[2] << 8;
+	CanNode_getData_uint16(data, &canData);
 }
 
 void getFunky(CanMessage* data){
