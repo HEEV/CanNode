@@ -318,7 +318,7 @@ CanNodeFmtError CanNode_getData_uint16(const CanMessage* msg, uint16_t* data) {
 
 	//check configuration byte
 	if((msg->data[0] >> 5) != CAN_UINT16 ||  //not right type
-	    msg->len != 3                   ||  //not right length
+	    msg->len != 3                    ||  //not right length
 	   (msg->data[0] & 0x1F) != CAN_DATA ){ //not data
 
 		return INVALID_TYPE;
