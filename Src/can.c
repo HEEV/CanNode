@@ -143,7 +143,7 @@ uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
 
 	//get data from regisers
 	//get the id field
-	rx_msg->id = (uint16_t) CAN->sFIFOMailBox[fifoNum].RIR >> 21;
+	rx_msg->id = (uint16_t) (CAN->sFIFOMailBox[fifoNum].RIR >> 21);
 
 	//check if it is a rtr message
 	rx_msg->rtr = false;
@@ -152,12 +152,12 @@ uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
 	}
 	
 	//get data length
-	rx_msg->len = (uint8_t) CAN->sFIFOMailBox[fifoNum].RDTR & CAN_RDT0R_DLC;
+	rx_msg->len = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDTR & CAN_RDT0R_DLC);
 
 	//get the data
     for(uint8_t i=0; i<4; ++i){
-		rx_msg->data[i+4] = (uint8_t) CAN->sFIFOMailBox[fifoNum].RDHR >> (8*i);
-		rx_msg->data[i]   = (uint8_t) CAN->sFIFOMailBox[fifoNum].RDLR >> (8*i);
+		rx_msg->data[i+4] = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDHR >> (8*i));
+		rx_msg->data[i]   = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDLR >> (8*i));
 	}
 	//clear fifo
 	CAN->RF0R |= CAN_RF0R_RFOM0;

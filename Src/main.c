@@ -116,9 +116,7 @@ int getDelay(uint16_t data){
 }
 
 void nodeHandler(CanMessage* data){
-	canData = data->data[1];
-	//bit shift second byte of data then mask it
-	canData |= data->data[2] << 8;
+	CanNode_getData_uint16(data, &canData);
 }
 
 void getFunky(CanMessage* data){
