@@ -34,12 +34,6 @@ typedef enum {
 } CanNodeType;
 
 typedef enum {
-	CAN_LOW_PRIORITY,
-	CAN_MED_PRIORITY,
-	CAN_HIGH_PRIORITY
-} CanNodePriority;
-
-typedef enum {
 	CAN_UINT8,
 	CAN_INT8,
 	CAN_UINT16,
@@ -76,7 +70,7 @@ typedef struct {
 	CanNodeType sensorType;
 } CanNode;
 
-uint16_t CanNode_init(CanNode* node, CanNodeType type, CanNodePriority pri);
+uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id);
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
 
 //functions for setting data

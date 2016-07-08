@@ -16,8 +16,8 @@ static CanMessage tmpMsg;
 
 static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
 
-uint16_t CanNode_init(CanNode* node, CanNodeType type, CanNodePriority pri) {
-	bool has_run = false;
+uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id) {
+	static bool has_run = false;
 
 	//if this is the first run clear list of nodes
 	if(!has_run){
@@ -40,9 +40,15 @@ uint16_t CanNode_init(CanNode* node, CanNodeType type, CanNodePriority pri) {
 		node->filters[i] = UNUSED_FILTER;
 	}
 
-	//TODO
-	//find id closest to the specified priority.
+	//check if the id is taken if it is taken return an error, if not assign id
+	//TODO check id
+	//tmpMsg.rtr = false;
+	//can_rtr(&tmpMsg, id, 5);
+	//if(!tmpMsg.rtr){
+	//	return 0; //slot is taken
+	//}
 	//set node to that id
+	node->id = id;
 
 	//add node to list of nodes... If there's room
 	for(uint8_t i=0; i<MAX_NODES; ++i){

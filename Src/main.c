@@ -56,13 +56,10 @@ int main(void) {
 	
 #ifndef RECIEVE
 	//setup basic can frame
-	CanNode_init(&node, ANALOG, CAN_LOW_PRIORITY);
-	node.id = 1200;
-	CanNode_init(&hiNode, UNCONFIG, CAN_LOW_PRIORITY);
-	hiNode.id = 0x7EF;
+	CanNode_init(&node, ANALOG, 1200);
+	CanNode_init(&hiNode, UNCONFIG, 0x7EF);
 #else
-	CanNode_init(&node, UNCONFIG, CAN_LOW_PRIORITY);
-	node.id = 0x7F0;
+	CanNode_init(&node, UNCONFIG, 0x7F0);
 	CanNode_addFilter(&node, 1200, nodeHandler);
 	CanNode_addFilter(&node, 0x7EF, getFunky);
 #endif
