@@ -50,7 +50,10 @@ typedef enum {
 	CAN_CONFIG_MODE,    //Sent by master to enter config mode
 	CAN_SET_ID,	        //Sent by master to change the id of the node
 	CAN_ID_SET_ERROR,   //Error sent by node if the new id is not availible
-	CAN_CONFIG_ERROR    //General configuration error
+	CAN_CONFIG_ERROR,   //General configuration error
+	CAN_GET_NAME,       //Ask a node for its name
+	CAN_GET_INFO,       //Ask a node for its info
+	CAN_NAME_INFO       //message is part of a name/info message
 } CanNodeMsgType;
 
 typedef enum {
@@ -68,10 +71,18 @@ typedef struct {
 	uint16_t filters[NUM_FILTERS];
 	filterHandler handle[NUM_FILTERS];
 	CanNodeType sensorType;
+	char* nodeName;
+	uint8_t nodeNameLen;
+	char* nodeInfo;
+	uint16_t nodeInfoLen;
 } CanNode;
 
 uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id);
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
+//NOTE: both of these functions are blocking and any inportant information
+//dilivered in the period using these functions will be lost. 
+void CanNode_getName(uint16_t id, char* name, uint8_t buff_len);
+void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len);
 
 //functions for setting data
 void CanNode_sendData_int8   (CanNode* node,   int8_t data);

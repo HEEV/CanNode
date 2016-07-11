@@ -77,6 +77,39 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 	return false; //no empty slots
 }
 
+void CanNode_getName(uint16_t id, char* name, uint8_t buff_len){
+	CanMessage msg;
+	//TODO add a timeout to these
+	//send a request to the specified id
+	msg.id = id;
+	msg.len = 1;
+	msg.rtr = false;
+	msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
+	can_tx(&msg, 5);
+
+	//TODO check if node is even there with an rtr
+	
+	//keep collecting data until a null character is reached (or timeout)
+	char* namePtr = name;
+	while(namePtr-name < buff_len){
+		//wait for it to be filled TODO add timeout
+		while(!is_can_msg_pending(CAN_FIFO0));
+		//get the next buffer
+		can_rx(&msg, 5);
+		//check if it is from our id
+		if(msg.id != id || (msg.data[0] & 0x05) != CAN_NAME_INFO){
+			continue;
+		}
+		//get all the data from this buffer
+		for(uint8_t i=0; i<msg.len-1 && namePtr-name<buff_len; ++namePtr, ++i){
+			*namePtr = msg.data[i];
+		}
+	}
+}
+
+void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len){
+}
+
 //getter and setter functions -------------------------------------------------
 
 void CanNode_sendData_int8(CanNode* node, int8_t data) {

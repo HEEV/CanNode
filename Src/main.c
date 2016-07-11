@@ -7,18 +7,18 @@
  */
 
 #include <stdint.h>
-#include "stm32f0xx_hal.h"
+#include <stm32f0xx_hal.h>
 #include <stdlib.h>
 #include <string.h>
-#include "../Inc/can.h"
-#include "../Inc/CanNode.h"
+#include <../Inc/can.h>
+#include <../Inc/CanNode.h>
 
 #define IO1_ADC ADC_CHSELR_CHSEL6
 #define IO2_ADC ADC_CHSELR_CHSEL7
 #define IO3_ADC ADC_CHSELR_CHSEL9
 
 //transmit code or recieve code
-#define RECIEVE
+//#define RECIEVE
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -29,6 +29,7 @@ static void MX_ADC_Init(void);
 int getDelay(uint16_t data);
 void nodeHandler(CanMessage* data);
 void getFunky(CanMessage* data);
+void switchHandle(CanMessage* data);
 uint16_t canData;
 CanNode node;
 
@@ -38,6 +39,8 @@ int main(void) {
 #ifndef RECIEVE
 	CanNode hiNode;
 	uint16_t adcVal;
+#else
+	volatile uint8_t switchState = 0;
 #endif
 	//uint32_t status;
 
@@ -56,19 +59,30 @@ int main(void) {
 	
 #ifndef RECIEVE
 	//setup basic can frame
-	CanNode_init(&node, ANALOG, 1200);
-	CanNode_init(&hiNode, UNCONFIG, 0x7EF);
+	CanNode_init(&node, ANALOG, ANALOG);
+	CanNode_init(&hiNode, UNCONFIG, UNCONFIG);
+	CanNode_addFilter(&hiNode, SWITCH, switchHandle);
 #else
-	CanNode_init(&node, UNCONFIG, 0x7F0);
-	CanNode_addFilter(&node, 1200, nodeHandler);
-	CanNode_addFilter(&node, 0x7EF, getFunky);
+	CanNode_init(&node, SWITCH, SWITCH);
+	CanNode_addFilter(&node, ANALOG, nodeHandler);
+	CanNode_addFilter(&node, UNCONFIG, getFunky);
 #endif
 
 	while (1) {
-#ifdef RECIEVE
 		CanNode_checkForMessages();
+#ifdef RECIEVE
 		//check if there is a message
 		tick = getDelay(canData);
+
+		switchState = GPIOA->IDR & GPIO_IDR_6;
+	    if(!switchState){
+			LED1_GPIO_Port->ODR |= LED1_Pin;
+			switchState = 1;
+		}
+		else{
+			LED1_GPIO_Port->ODR &= ~LED1_Pin;
+			switchState = 0;
+		}
 #else
 		//start ADC conversion
 		ADC1->CR |= ADC_CR_ADSTART;
@@ -80,18 +94,22 @@ int main(void) {
 		adcVal = ADC1->DR;
 		tick = getDelay(adcVal);
 
-		if(timeRemoved % 5 == 0){
-			CanNode_sendData_uint16(&node, adcVal);
-		}
 #endif
-		
 		if(tick - timeRemoved <= 0){ //toggle lights
 			timeRemoved=0;
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
 #ifndef RECIEVE
-			int8_t msg[4] = "Hi!";
-			CanNode_sendDataArr_int8(&hiNode, msg, 3);
+			//int8_t msg[4] = "Hi!";
+			//CanNode_sendDataArr_int8(&hiNode, msg, 3);
+#endif
+		}
+
+		if(timeRemoved % 5 == 0){
+#ifndef RECIEVE
+			CanNode_sendData_uint16(&node, adcVal);
+#else
+			CanNode_sendData_uint8(&node, switchState);
 #endif
 		}
 		timeRemoved++; 
@@ -119,6 +137,18 @@ void nodeHandler(CanMessage* data){
 void getFunky(CanMessage* data){
 		int8_t msg[6] = "Punk!";
 		CanNode_sendDataArr_int8(&node, msg, 5);
+}
+
+void switchHandle(CanMessage* data){
+	uint8_t switchState;
+	static uint8_t oldState = 0;
+
+	CanNode_getData_uint8(data, &switchState);
+
+	if(switchState != oldState && switchState){
+		LED1_GPIO_Port->ODR ^= LED1_Pin;
+	}
+	oldState = switchState;
 }
 
 /** System Clock Configuration
@@ -179,10 +209,17 @@ void MX_GPIO_Init(void) {
     GPIOA->MODER |= GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0; //set to output modes
     //all other settings are okay
 
+#ifndef RECIEVE
     //setup PA6 (IO1), PA7 (IO2), and PB1(IO3) as analog inputs
     GPIOA->MODER |= GPIO_MODER_MODER6_0 | GPIO_MODER_MODER6_1 //PA6
                  |  GPIO_MODER_MODER7_0 | GPIO_MODER_MODER6_1;//PA7
 
     GPIOB->MODER |= GPIO_MODER_MODER1_0 | GPIO_MODER_MODER1_1;//PB1
+#else
+    //GPIOA->MODER |= //GPIO_MODER_MODER6_0 | GPIO_MODER_MODER6_1 //PA6 leave as input
+    //               GPIO_MODER_MODER7_0 | GPIO_MODER_MODER6_1;//PA7
+
+    GPIOB->MODER |= GPIO_MODER_MODER1_0 | GPIO_MODER_MODER1_1;//PB1
+#endif
 }
 
