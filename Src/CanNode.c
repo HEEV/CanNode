@@ -17,6 +17,16 @@ static CanMessage tmpMsg;
 static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
 static void writeFlash(uint16_t* address, uint16_t data);
 
+/**
+ * Initilizes an empty CanNode structure to the values provided and saves it
+ * to flash.
+ * 
+ * \param node Pointer to a CanNode will be set to a memory location by the function.
+ * \param type Gives the sensor type
+ * \param id CAN Address, use the CanNodeType type plus a constant.
+ *
+ * \returns the id of the node if successfull and 0 if unsuccessfull
+ */
 uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id) {
 	static bool has_run = false;
 
@@ -61,6 +71,18 @@ uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id) {
 	return 0;//no open slots
 }
 
+/**
+ * Saves a filter id and a handler to a node in flash memory. The function also
+ * accepts a function which gets called if a message from that id is avalible.
+ *
+ * \param node pointer to a node saved in flash memory
+ * \param filter id of the device that should be handled by handle
+ * \param handle function used to handle the filter
+ *
+ * \returns true if the filter was added, false if otherwise.
+ *
+ * \see CanNode_init()
+ */
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 	if(filter > 0x7FF || handle == NULL){
 		return false;
@@ -172,6 +194,16 @@ void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len) {
 
 //getter and setter functions -------------------------------------------------
 
+/**
+ * \param node pointer to a CanNode
+ * \param data data to send
+ *
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_int32()
+ * \see CanNode_sendData_uint32()
+ */
 void CanNode_sendData_int8(const CanNode* node, int8_t data) {
 	CanMessage msg;
 	//configuration byte
@@ -184,7 +216,16 @@ void CanNode_sendData_int8(const CanNode* node, int8_t data) {
 	msg.id = node->id;
 	can_tx(&msg, 5); 
 }
-
+/**
+ * \param node pointer to a CanNode
+ * \param data data to send
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_int32()
+ * \see CanNode_sendData_uint32()
+ */
 void CanNode_sendData_uint8(const CanNode* node, uint8_t data) {
 	CanMessage msg;
 	//configuration byte
@@ -198,6 +239,16 @@ void CanNode_sendData_uint8(const CanNode* node, uint8_t data) {
 	can_tx(&msg, 5); 
 }
 
+/**
+ * \param node pointer to a CanNode
+ * \param data data to send
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_int32()
+ * \see CanNode_sendData_uint32()
+ */
 void CanNode_sendData_int16(const CanNode* node, int16_t data) {
 	CanMessage msg;
 	//configuration byte
@@ -212,6 +263,16 @@ void CanNode_sendData_int16(const CanNode* node, int16_t data) {
 	can_tx(&msg, 5); 
 }
 
+/**
+ * \param node pointer to a CanNode
+ * \param data data to send
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_int32()
+ * \see CanNode_sendData_uint32()
+ */
 void CanNode_sendData_uint16(const CanNode* node, uint16_t data) {
 	CanMessage msg;
 	//configuration byte
@@ -226,6 +287,16 @@ void CanNode_sendData_uint16(const CanNode* node, uint16_t data) {
 	can_tx(&msg, 5); 
 }
 
+/**
+ * \param node pointer to a CanNode
+ * \param data data to send
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_uint32()
+ */
 void CanNode_sendData_int32(const CanNode* node, int32_t data) {
 	CanMessage msg;
 	//configuration byte
@@ -242,6 +313,16 @@ void CanNode_sendData_int32(const CanNode* node, int32_t data) {
 	can_tx(&msg, 5); 
 }
 
+/**
+ * \param node pointer to a CanNode
+ * \param data data to send
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_int32()
+ */
 void CanNode_sendData_uint32(const CanNode* node, uint32_t data) {
 	CanMessage msg;
 	//configuration byte
@@ -258,7 +339,21 @@ void CanNode_sendData_uint32(const CanNode* node, uint32_t data) {
 	can_tx(&msg, 5); 
 }
 
-CanNodeFmtError CanNode_sendDataArr_int8(const CanNode* node, int8_t* data, uint8_t len) {
+/**
+ * Sends an array of data over the CANBus.
+ * Maximum size for the aray is 7 bytes.
+ *
+ * \param node Pointer to a CanNode
+ * \param data An array of data
+ * \param len  Length of the data to be sent. Maximum length of 7
+ *
+ * \returns DATA_OVERFLOW if len > 7, DATA_OK otherwise
+ *
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_int16()
+ * \see CanNode_sendDataArr_uint16()
+ */
+CanState CanNode_sendDataArr_int8(const CanNode* node, int8_t* data, uint8_t len) {
 	CanMessage msg;
 	//check if valid
 	if(len>7){
@@ -280,7 +375,21 @@ CanNodeFmtError CanNode_sendDataArr_int8(const CanNode* node, int8_t* data, uint
 	return DATA_OK;
 }
 
-CanNodeFmtError CanNode_sendDataArr_uint8(const CanNode* node, uint8_t* data, uint8_t len) {
+/**
+ * Sends an array of data over the CANBus.
+ * Maximum size for the aray is 7 bytes.
+ *
+ * \param node Pointer to a CanNode
+ * \param data An array of data
+ * \param len  Length of the data to be sent. Maximum length of 7
+ *
+ * \returns DATA_OVERFLOW if len > 7, DATA_OK otherwise
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_int16()
+ * \see CanNode_sendDataArr_uint16()
+ */
+CanState CanNode_sendDataArr_uint8(const CanNode* node, uint8_t* data, uint8_t len) {
 	CanMessage msg;
 	//check if valid
 	if(len>7){
@@ -302,7 +411,21 @@ CanNodeFmtError CanNode_sendDataArr_uint8(const CanNode* node, uint8_t* data, ui
 	return DATA_OK;
 }
 
-CanNodeFmtError CanNode_sendDataArr_int16(const CanNode* node, int16_t* data, uint8_t len) {
+/**
+ * Sends an array of data over the CANBus.
+ * Maximum size for the aray is 2 integers.
+ *
+ * \param node Pointer to a CanNode
+ * \param data An array of data
+ * \param len  Length of the data to be sent. Maximum length of 2
+ *
+ * \returns DATA_OVERFLOW if len > 2, DATA_OK otherwise
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_uint16()
+ */
+CanState CanNode_sendDataArr_int16(const CanNode* node, int16_t* data, uint8_t len) {
 	CanMessage msg;
 	//check if valid
 	if(len>2){
@@ -325,7 +448,21 @@ CanNodeFmtError CanNode_sendDataArr_int16(const CanNode* node, int16_t* data, ui
 	return DATA_OK;
 }
 
-CanNodeFmtError CanNode_sendDataArr_uint16(const CanNode* node, uint16_t* data, uint8_t len) {
+/**
+ * Sends an array of data over the CANBus.
+ * Maximum size for the aray is 2 integers.
+ *
+ * \param node Pointer to a CanNode
+ * \param data An array of data
+ * \param len  Length of the data to be sent. Maximum length of 2
+ *
+ * \returns DATA_OVERFLOW if len > 2, DATA_OK otherwise
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_int16()
+ */
+CanState CanNode_sendDataArr_uint16(const CanNode* node, uint16_t* data, uint8_t len) {
 	CanMessage msg;
 	//check if valid
 	if(len>2){
@@ -348,7 +485,7 @@ CanNodeFmtError CanNode_sendDataArr_uint16(const CanNode* node, uint16_t* data, 
 	return DATA_OK;
 }
 
-CanNodeFmtError CanNode_getData_int8(const CanMessage* msg, int8_t* data) {
+CanState CanNode_getData_int8(const CanMessage* msg, int8_t* data) {
 
 	if(msg == NULL){
 		return DATA_ERROR;
@@ -368,7 +505,7 @@ CanNodeFmtError CanNode_getData_int8(const CanMessage* msg, int8_t* data) {
 	return DATA_OK;
 }
 
-CanNodeFmtError CanNode_getData_uint8(const CanMessage* msg, uint8_t* data) {
+CanState CanNode_getData_uint8(const CanMessage* msg, uint8_t* data) {
 
 	if(msg == NULL){
 		return DATA_ERROR;
@@ -388,7 +525,7 @@ CanNodeFmtError CanNode_getData_uint8(const CanMessage* msg, uint8_t* data) {
 	return DATA_OK;
 }
 
-CanNodeFmtError CanNode_getData_int16(const CanMessage* msg, int16_t* data) {
+CanState CanNode_getData_int16(const CanMessage* msg, int16_t* data) {
 
 	if(msg == NULL){
 		return DATA_ERROR;
@@ -409,7 +546,7 @@ CanNodeFmtError CanNode_getData_int16(const CanMessage* msg, int16_t* data) {
 	return DATA_OK;
 }
 
-CanNodeFmtError CanNode_getData_uint16(const CanMessage* msg, uint16_t* data) {
+CanState CanNode_getData_uint16(const CanMessage* msg, uint16_t* data) {
 
 	if(msg == NULL){
 		return DATA_ERROR;

@@ -47,7 +47,7 @@ OBJS = $(SRCS:.c=.o)
 
 .PHONY: proj
 
-all: proj
+all: proj 
 
 proj: $(PROJ_NAME).elf
 
@@ -65,3 +65,5 @@ flash: all
 
 stflash: all
 	st-flash write $(PROJ_NAME).bin 0x08000000
+docs: 
+	doxygen Doxyfile

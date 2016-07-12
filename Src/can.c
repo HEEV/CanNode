@@ -8,7 +8,7 @@
 CAN_HandleTypeDef hcan;
 CAN_FilterConfTypeDef filter;
 uint32_t prescaler;
-can_bus_state bus_state;
+CanState bus_state;
 
 void can_init(void) {
 	filter.FilterIdHigh = 0;
@@ -48,7 +48,7 @@ void can_enable(void) {
 	}
 }
 
-void can_set_bitrate(can_bitrate bitrate) {
+void can_set_bitrate(canBitrate bitrate) {
 	switch(bitrate) {
 		case CAN_BITRATE_10K:
 			prescaler = 600;
@@ -92,7 +92,7 @@ void can_set_silent(uint8_t silent) {
 	}
 }
 
-can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout) {
+CanState can_tx(CanMessage *tx_msg, uint32_t timeout) {
 	uint8_t mailbox;
 
 	//find an empty mailbox
@@ -132,7 +132,7 @@ can_bus_state can_tx(CanMessage *tx_msg, uint32_t timeout) {
 	return BUS_OK;
 }
 
-uint32_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
+CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
 	//TODO write code to check in both fifos
 	uint8_t fifoNum = 0;
 

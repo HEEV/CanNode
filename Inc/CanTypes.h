@@ -13,32 +13,52 @@
 #include <stdbool.h>
 
 #ifndef MAX_NODES
+	/// Maximum number of nodes stored in flash. Can be overwriten by redefinition
 	#define MAX_NODES 3
 #endif
 
 #ifndef NUM_FILTERS
+	/// Number of filters each node can have. Can be overwriten by redefinition
 	#define NUM_FILTERS 4
 #endif
 
-typedef enum {
-	CAN_BITRATE_10K,
-	CAN_BITRATE_20K,
-	CAN_BITRATE_50K,
-	CAN_BITRATE_100K,
-	CAN_BITRATE_125K,
-	CAN_BITRATE_250K,
-	CAN_BITRATE_500K,
-	CAN_BITRATE_750K,
-	CAN_BITRATE_1000K,
-} can_bitrate;
+/// Key to unlokck stm32 flash memory
+#define FLASH_FKEY1 0x45670123
+/// Key to unlokck stm32 flash memory
+#define FLASH_FKEY2 0xCDEF89AB
 
+/**
+ * \enum canBitrate
+ * \brief Defines various avalible bitrates for the CANBus
+ *
+ */
 typedef enum {
-	BUS_OK,
-	BUS_BUSY,
-	NO_DATA,
-	BUS_OFF
-} can_bus_state;
+	CAN_BITRATE_10K,  ///< 10k baud
+	CAN_BITRATE_20K,  ///< 20k baud
+	CAN_BITRATE_50K,  ///< 50k baud
+	CAN_BITRATE_100K, ///< 100k baud
+	CAN_BITRATE_125K, ///< 125k baud
+	CAN_BITRATE_250K, ///< 250k baud
+	CAN_BITRATE_500K, ///< 500k baud
+	CAN_BITRATE_750K, ///< 750k baud
+	CAN_BITRATE_1000K,///< 1M baud
+} canBitrate;
 
+/**
+ * \enum CanState 
+ * \brief Defines various errors and states of the CANBus 
+ *
+ */
+typedef enum {
+	BUS_OK = 0,    ///< Good state
+	DATA_OK = 0,   ///< Good state
+	DATA_ERROR,    ///< Catch all data error
+	NO_DATA,       ///< No data availible on the bus
+	INVALID_TYPE,  ///< The bus has data but of a different type then asked for
+	DATA_OVERFLOW, ///< Too much data was was put in the message
+	BUS_BUSY,      ///< The bus is working with someone else right now
+	BUS_OFF        ///< The bus is off - call can_init() and can_enable()
+} CanState;
 
 /**
  * \enum CanNodeType
@@ -55,6 +75,18 @@ typedef enum {
 	TEMPURATURE = 1664, ///< Tempurature sensors
 	UNCONFIG    = 1984  ///< Unconfigured nodes
 } CanNodeType;
+
+/**
+ * \struct CanMessage
+ * \brief Stucture for holding a CANBus message.
+ *
+ */
+typedef struct {
+	uint16_t id;     ///< ID of the sender
+	uint8_t len;     ///< length of the message
+	bool rtr;        ///< Asking for data (true) or sending data (false)
+	uint8_t data[8]; ///< Data
+} CanMessage;	
 
 /** 
  * \enum CanNodeDataType
@@ -94,27 +126,6 @@ typedef enum {
 	CAN_GET_INFO,       ///< Ask a node for its info
 	CAN_NAME_INFO       ///< Message is part of a name/info message
 } CanNodeMsgType;
-
-//types of errors that can be returned by functions
-typedef enum {
-	DATA_OK,
-	DATA_ERROR,
-	INVALID_TYPE,
-	DATA_OVERFLOW,
-} CanNodeFmtError;
-
-
-/**
- * \struct CanMessage
- * \brief Stucture for holding a CANBus message.
- *
- */
-typedef struct {
-	uint16_t id;     ///< ID of the sender
-	uint8_t len;     ///< length of the message
-	bool rtr;        ///< Asking for data (true) or sending data (false)
-	uint8_t data[8]; ///< Data
-} CanMessage;	
 
 /**
  * \typedef filterHandler

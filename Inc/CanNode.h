@@ -1,3 +1,18 @@
+/**
+ * \mainpage CanNode library documentation
+ *
+ * \section About The CanNode Library
+ *
+ * The CanNode library attempts to provide an easy to use interface for 
+ * connecting CANBus devices together over a network. 
+ *
+ * \section Important Files
+ *
+ * The most important file is CanNode.h it provides functions for reading and
+ * writing to devices on the CANBus. 
+ *
+ */
+
 /** 
  * \file CanNode.h
  * \brief Interface for using CanNode devices.
@@ -25,10 +40,16 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
 /// \brief Check all initilized CanNodes for messages and call callbacks.
 void CanNode_checkForMessages();
 
-//NOTE: these functions are blocking and any inportant information
-//dilivered in the period using these functions will be lost. 
-//These functions get the Name and Info strings from the device with the given id
 
+/** 
+ * \name Info Functions
+ * These functions get or set data in the form of strings saved to the flash of
+ * the chip. 
+ *
+ * *NOTE*: these functions are blocking and any important information
+ * dilivered while this function is in progress will be lost. 
+ */
+//@{
 /// \brief Get an name string from a CAN id.
 void CanNode_getName(uint16_t id, char* name, uint8_t buff_len, uint32_t timeout);
 /// \brief Get an info string from a CAN id.
@@ -39,8 +60,14 @@ void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeou
 void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len);
 /// \brief Set the info string for a CanNode into flash.
 void CanNode_setInfo(const CanNode* node, const char* info, uint16_t buff_len);
+//@}
 
-//functions for setting data
+/** 
+ * \name sendData Functions
+ * These functions that send data over the CANBus and support various integer
+ * types of data. They are non-blocking.
+ */
+//@{
 /// \brief Send a signed 8-bit integer.
 void CanNode_sendData_int8   (const CanNode* node,   int8_t data);
 /// \brief Send an unsigned 8-bit integer.
@@ -53,37 +80,60 @@ void CanNode_sendData_uint16 (const CanNode* node, uint16_t data);
 void CanNode_sendData_int32  (const CanNode* node,  int32_t data);
 /// \brief Send an unsigned 32-bit integer.
 void CanNode_sendData_uint32 (const CanNode* node, uint32_t data);
+//@}
 
+/** 
+ * \name sendDataArr Functions
+ * These functions that send an array of data over the CANBus. They support
+ * various integer types of data. They are non-blocking.
+ */
+//@{
 /// \brief Send an array of uinsigned 8-bit integers.
-CanNodeFmtError CanNode_sendDataArr_int8   (const CanNode* node, int8_t* data, uint8_t len);
+CanState CanNode_sendDataArr_int8   (const CanNode* node, int8_t* data, uint8_t len);
 /// \brief Send an array of signed 8-bit integers.
-CanNodeFmtError CanNode_sendDataArr_uint8  (const CanNode* node, uint8_t* data, uint8_t len);
+CanState CanNode_sendDataArr_uint8  (const CanNode* node, uint8_t* data, uint8_t len);
 /// \brief Send an array of uinsigned 16-bit integers.
-CanNodeFmtError CanNode_sendDataArr_int16  (const CanNode* node, int16_t* data, uint8_t len);
+CanState CanNode_sendDataArr_int16  (const CanNode* node, int16_t* data, uint8_t len);
 /// \brief Send an array of signed 16-bit integers.
-CanNodeFmtError CanNode_sendDataArr_uint16 (const CanNode* node, uint16_t* data, uint8_t len);
+CanState CanNode_sendDataArr_uint16 (const CanNode* node, uint16_t* data, uint8_t len);
+//@}
 
-//functions for getting data
+/** 
+ * \name getData Functions
+ * These functions get data of various integer types from a CanMessage. They are
+ * non-blocking. If the data is not of the same type as the called function
+ * INVALID_TYPE is returned.
+ */
+//@{
 /// \brief Get a signed 8-bit integer from a CanMessage.
-CanNodeFmtError CanNode_getData_int8   (const CanMessage* msg,   int8_t* data);
+CanState CanNode_getData_int8   (const CanMessage* msg,   int8_t* data);
 /// \brief Get an unsigned 8-bit integer from a CanMessage.
-CanNodeFmtError CanNode_getData_uint8  (const CanMessage* msg,  uint8_t* data);
+CanState CanNode_getData_uint8  (const CanMessage* msg,  uint8_t* data);
 /// \brief Get a signed 16-bit integer from a CanMessage.
-CanNodeFmtError CanNode_getData_int16  (const CanMessage* msg,  int16_t* data);
+CanState CanNode_getData_int16  (const CanMessage* msg,  int16_t* data);
 /// \brief Get an unsigned 16-bit integer from a CanMessage.
-CanNodeFmtError CanNode_getData_uint16 (const CanMessage* msg, uint16_t* data);
+CanState CanNode_getData_uint16 (const CanMessage* msg, uint16_t* data);
 /// \brief Get a signed 32-bit integer from a CanMessage.
-CanNodeFmtError CanNode_getData_int32  (const CanMessage* msg,  int32_t* data);
+CanState CanNode_getData_int32  (const CanMessage* msg,  int32_t* data);
 /// \brief Get an unsigned 32-bit integer from a CanMessage.
-CanNodeFmtError CanNode_getData_uint32 (const CanMessage* msg, uint32_t* data);
+CanState CanNode_getData_uint32 (const CanMessage* msg, uint32_t* data);
+//@}
 
+/** 
+ * \name getDataArr Functions
+ * These functions get arrays of various integer types from a CanMessage. They are
+ * non-blocking. If the data is not of the same type as the called function
+ * INVALID_TYPE is returned.
+ */
+//@{
 /// \brief Get an array of signed 8-bit integers from a CanMessage.
-CanNodeFmtError CanNode_getDataArr_int8   (const CanMessage* msg, int8_t data[7]);
+CanState CanNode_getDataArr_int8   (const CanMessage* msg, int8_t data[7]);
 /// \brief Get an array of unsigned 8-bit integers from a CanMessage.
-CanNodeFmtError CanNode_getDataArr_uint8  (const CanMessage* msg, uint8_t data[7]);
+CanState CanNode_getDataArr_uint8  (const CanMessage* msg, uint8_t data[7]);
 /// \brief Get an array of signed 16-bit integers from a CanMessage.
-CanNodeFmtError CanNode_getDataArr_int16  (const CanMessage* msg, int16_t data[2]);
+CanState CanNode_getDataArr_int16  (const CanMessage* msg, int16_t data[2]);
 /// \brief Get an array of unsigned 16-bit integers from a CanMessage.
-CanNodeFmtError CanNode_getDataArr_uint16 (const CanMessage* msg, uint16_t data[2]);
+CanState CanNode_getDataArr_uint16 (const CanMessage* msg, uint16_t data[2]);
+//@}
 
 #endif //_CAN_NODE_H_
