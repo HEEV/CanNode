@@ -3,32 +3,7 @@
 
 #include <stm32f0xx_hal.h>
 #include <stdbool.h>
-
-typedef enum {
-	CAN_BITRATE_10K,
-	CAN_BITRATE_20K,
-	CAN_BITRATE_50K,
-	CAN_BITRATE_100K,
-	CAN_BITRATE_125K,
-	CAN_BITRATE_250K,
-	CAN_BITRATE_500K,
-	CAN_BITRATE_750K,
-	CAN_BITRATE_1000K,
-} can_bitrate;
-
-typedef enum {
-	BUS_OK,
-	BUS_BUSY,
-	NO_DATA,
-	BUS_OFF
-} can_bus_state;
-
-typedef struct {
-	uint16_t id;
-	uint8_t len;
-	bool rtr;
-	uint8_t data[8];
-} CanMessage;	
+#include "CanTypes.h"
 
 void can_init(void);
 void can_enable(void);
