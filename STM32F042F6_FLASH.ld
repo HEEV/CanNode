@@ -19,11 +19,6 @@
 **  Distribution: The file is distributed as is, without any warranty
 **                of any kind.
 **
-**  (c)Copyright Atollic AB.
-**  You may use this file as-is or modify it according to the needs of your
-**  project. This file may only be built (assembled or compiled and linked)
-**  using the Atollic TrueSTUDIO(R) product. The use of this file together
-**  with other tools than Atollic TrueSTUDIO(R) is not permitted.
 **
 *****************************************************************************
 */
@@ -40,7 +35,8 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-FLASH (rx)      : ORIGIN = 0x8000000, LENGTH = 32K
+FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 31K
+CANINFO (r)    : ORIGIN = 0x0800FC00, LENGTH = 1K /*CanInfo stuff on page 63*/
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 6K
 }
 
@@ -108,6 +104,7 @@ SECTIONS
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
+
 
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);

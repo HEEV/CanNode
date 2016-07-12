@@ -15,6 +15,7 @@ static bool newMessage;
 static CanMessage tmpMsg;
 
 static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
+static void writeFlash(uint16_t* address, uint16_t data);
 
 uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id) {
 	static bool has_run = false;
@@ -141,6 +142,33 @@ void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeou
 		}
 	}
 }
+
+static void writeFlash(uint16_t* address, uint16_t data){
+	//unlock flash
+	while ((FLASH->SR & FLASH_SR_BSY) != 0 );//wait until flash is not busy
+	if ((FLASH->CR & FLASH_CR_LOCK) != 0 ){ //if flash is locked
+		//unlock flash
+		FLASH->KEYR = FLASH_FKEY1; 
+		FLASH->KEYR = FLASH_FKEY2;
+	}
+
+	//write flash
+	FLASH->CR |= FLASH_CR_PG; //set flash programming bit
+	*(__IO uint16_t*)(address) = data; //write data
+	while ((FLASH->SR & FLASH_SR_BSY) != 0);
+
+	if ((FLASH->SR & FLASH_SR_EOP) != 0){//check for and clear errors
+		FLASH->SR |= FLASH_SR_EOP; 
+	}
+	FLASH->CR &= ~FLASH_CR_PG;
+}
+
+void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len) {
+	//store the data in buffer into the space pointed to by node->name
+	//this address space resides in flash so a special process is taken
+	
+	
+}	
 
 //getter and setter functions -------------------------------------------------
 
