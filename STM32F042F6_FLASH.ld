@@ -36,7 +36,7 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 MEMORY
 {
 FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 31K
-CANINFO (r)    : ORIGIN = 0x0800FC00, LENGTH = 1K /*CanInfo stuff on page 63*/
+CANINFO (r)    : ORIGIN = 0x08007C00, LENGTH = 1K /*CanInfo stuff on page 63*/
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 6K
 }
 
@@ -105,7 +105,14 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
 
-
+  /* 1K section at the end of flash for storing can info */
+  .can :
+  {
+	  . = ALIGN(4);
+	  *(.can)
+	  *(.can*)
+	  . = ALIGN(4);
+  } >CANINFO
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 

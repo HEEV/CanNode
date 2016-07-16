@@ -1,73 +1,90 @@
-/*
- * CanNode.c - provides functions for using CanNode devices
+/**
+ * \file CanNode.c
+ * \brief implements functions for CanNode devices
  *
- * Author: Samuel Ellicott
- * Date: 6-20-16
+ * \author Samuel Ellicott
+ * \date 6-20-16
  */
-#include <stdlib.h>
-#include <stdint.h>
 #include "../Inc/CanNode.h"
 #define UNUSED_FILTER 0xFFFF
 
 
-static CanNode* nodes[MAX_NODES];
+static CanNode nodes[MAX_NODES] __attribute__((section(".can")));
 static bool newMessage; 
 static CanMessage tmpMsg;
 
 static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
-static void writeFlash(uint16_t* address, uint16_t data);
 
 /**
  * Initilizes an empty CanNode structure to the values provided and saves it
- * to flash.
+ * to flash. If a CanNode of the same type and id was previously saved to flash
+ * that will be retrieved instead of making a new one. 
  * 
- * \param node Pointer to a CanNode will be set to a memory location by the function.
- * \param type Gives the sensor type
- * \param id CAN Address, use the CanNodeType type plus a constant.
+ * \param[out] node Pointer to a CanNode. This will be set to a memory location 
+ * in the flash area by the function if it succeeds. If the function fails it
+ * will be set to NULL.
+ * \param[in] type Gives the sensor type
+ * \param[in] id CAN Address, use the CanNodeType type plus a constant.
+ * \param[in] force Force the creation of a new node, if an old one is not found 
+ * in flash memory create it. 
  *
  * \returns the id of the node if successfull and 0 if unsuccessfull
  */
-uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id) {
+CanNode* CanNode_init(CanNode** node, CanNodeType type, uint16_t id, bool force) {
 	static bool has_run = false;
+	static uint8_t usedNodes = 0;
 
 	//if this is the first run clear list of nodes
 	if(!has_run){
 		can_init();
 		can_enable();
-		for(uint8_t i=0; i<MAX_NODES; ++i){
-			nodes[i]=NULL;
-		}
 		newMessage=false;
 		has_run = true;
 	}
 
-	//check if input is valid
-	if(node == NULL){
-		return 0;//error
-	}
-	node->sensorType = type;
-	//reset filters
-	for(uint8_t i=0; i<NUM_FILTERS; ++i){
-		node->filters[i] = UNUSED_FILTER;
-	}
-
-	//check if the id is taken if it is taken return an error, if not assign id
-	//TODO check id
-	//tmpMsg.rtr = false;
-	//can_rtr(&tmpMsg, id, 5);
-	//if(!tmpMsg.rtr){
-	//	return 0; //slot is taken
-	//}
-	//set node to that id
-	node->id = id;
-
-	//add node to list of nodes... If there's room
+	*node = NULL;
+	//check if a node of that type exists
 	for(uint8_t i=0; i<MAX_NODES; ++i){
-		if(nodes[i]==NULL){
-			nodes[i]=node;
-			return node->id; //Sucess! Return the id of the node
+		//check for an id and type that matches the ones specified
+		if(nodes[i].id == id && nodes[i].sensorType == type){
+			//its a match!
+			*node = &nodes[i];
+			//fill a spot in used nodes
+			usedNodes |= 1<<i;
+			return &nodes[i];
 		}
 	}
+	if(!force) {
+		//did not find anything
+		return 0;
+	}
+
+	flashUnlock();
+	//erase flash
+	flashErasePage((uint32_t) &nodes[0]);
+	flashLock();
+	for(uint8_t i=0; i<MAX_NODES; ++i){
+		if((usedNodes & (1<<i)) == 0){
+			//found a happy place
+			*node = &nodes[i];
+			
+			flashUnlock();
+			//sensor type
+			flashWrite_16((uint32_t) &nodes[i].sensorType, type);
+
+			//reset filters, filters should already be reset b/c flash erase
+			//sets all values to 0xffff==UNUSED_FILTER.
+
+			//set node to that id
+			flashWrite_16((uint32_t) &nodes[i].id, id);
+			flashLock();
+
+			//fill a spot in used nodes
+			usedNodes |= 1<<i;
+			return &nodes[i];
+		}
+	}
+
 	return 0;//no open slots
 }
 
@@ -75,9 +92,9 @@ uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id) {
  * Saves a filter id and a handler to a node in flash memory. The function also
  * accepts a function which gets called if a message from that id is avalible.
  *
- * \param node pointer to a node saved in flash memory
- * \param filter id of the device that should be handled by handle
- * \param handle function used to handle the filter
+ * \param[in,out] node pointer to a node saved in flash memory
+ * \param[in] filter id of the device that should be handled by handle
+ * \param[in] handle function used to handle the filter
  *
  * \returns true if the filter was added, false if otherwise.
  *
@@ -91,9 +108,19 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 	//add to the end of the list of filters... If there's room.
 	for(uint8_t i=0; i<NUM_FILTERS; ++i){
 		if(node->filters[i] == UNUSED_FILTER){
-			node->filters[i] = filter;
-			node->handle[i] = handle;
-			return true; //Sucess! Filter has been added
+			//save the filter id
+			flashWrite_16((uint32_t) &node->filters[i], filter);
+			//save a pointer to the handler function
+			flashWrite_32((uint32_t) &node->handle[i], (uint32_t) handle);
+			
+			//check if write worked
+			if(node->handle[i] == handle){
+				return true;
+			}
+			else{
+				return false;
+			}
+			//return true; //Sucess! Filter has been added
 		}
 	}
 
@@ -165,31 +192,14 @@ void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeou
 	}
 }
 
-static void writeFlash(uint16_t* address, uint16_t data){
-	//unlock flash
-	while ((FLASH->SR & FLASH_SR_BSY) != 0 );//wait until flash is not busy
-	if ((FLASH->CR & FLASH_CR_LOCK) != 0 ){ //if flash is locked
-		//unlock flash
-		FLASH->KEYR = FLASH_FKEY1; 
-		FLASH->KEYR = FLASH_FKEY2;
-	}
-
-	//write flash
-	FLASH->CR |= FLASH_CR_PG; //set flash programming bit
-	*(__IO uint16_t*)(address) = data; //write data
-	while ((FLASH->SR & FLASH_SR_BSY) != 0);
-
-	if ((FLASH->SR & FLASH_SR_EOP) != 0){//check for and clear errors
-		FLASH->SR |= FLASH_SR_EOP; 
-	}
-	FLASH->CR &= ~FLASH_CR_PG;
-}
-
 void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len) {
 	//store the data in buffer into the space pointed to by node->name
 	//this address space resides in flash so a special process is taken
 	
-	
+	for(uint8_t i=0; *name!='\0' && i<30 && i<buff_len; i+=2){
+		uint16_t chars = name[i] | (name[i+1] << 8);
+		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], chars);
+	}
 }	
 
 //getter and setter functions -------------------------------------------------
@@ -347,7 +357,7 @@ void CanNode_sendData_uint32(const CanNode* node, uint32_t data) {
  * \param data An array of data
  * \param len  Length of the data to be sent. Maximum length of 7
  *
- * \returns DATA_OVERFLOW if len > 7, DATA_OK otherwise
+ * \returns \ref DATA_OVERFLOW if len > 7, \ref DATA_OK otherwise
  *
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
@@ -383,7 +393,7 @@ CanState CanNode_sendDataArr_int8(const CanNode* node, int8_t* data, uint8_t len
  * \param data An array of data
  * \param len  Length of the data to be sent. Maximum length of 7
  *
- * \returns DATA_OVERFLOW if len > 7, DATA_OK otherwise
+ * \returns \ref DATA_OVERFLOW if len > 7, \ref DATA_OK otherwise
  *
  * \see CanNode_sendDataArr_int8()
  * \see CanNode_sendDataArr_int16()
@@ -419,7 +429,7 @@ CanState CanNode_sendDataArr_uint8(const CanNode* node, uint8_t* data, uint8_t l
  * \param data An array of data
  * \param len  Length of the data to be sent. Maximum length of 2
  *
- * \returns DATA_OVERFLOW if len > 2, DATA_OK otherwise
+ * \returns \ref DATA_OVERFLOW if len > 2, \ref DATA_OK otherwise
  *
  * \see CanNode_sendDataArr_int8()
  * \see CanNode_sendDataArr_uint8()
@@ -456,7 +466,7 @@ CanState CanNode_sendDataArr_int16(const CanNode* node, int16_t* data, uint8_t l
  * \param data An array of data
  * \param len  Length of the data to be sent. Maximum length of 2
  *
- * \returns DATA_OVERFLOW if len > 2, DATA_OK otherwise
+ * \returns \ref DATA_OVERFLOW if len > 2, \ref DATA_OK otherwise
  *
  * \see CanNode_sendDataArr_int8()
  * \see CanNode_sendDataArr_uint8()
@@ -580,17 +590,17 @@ void CanNode_checkForMessages() {
 
 	can_rx(&tmpMsg, 5);
 	//loop through nodes
-	for(uint8_t i=0; i<MAX_NODES && nodes[i] != NULL; ++i){
+	for(uint8_t i=0; i<MAX_NODES; ++i){
 
 		//CanNode takes over if the caller asks for your id
-		if(tmpMsg.id == nodes[i]->id){
-			CanNode_nodeHandler(nodes[i], &tmpMsg);
+		if(tmpMsg.id == nodes[i].id){
+			CanNode_nodeHandler(&nodes[i], &tmpMsg);
 		}
 		
 		//call callbacks for the user defined filters
 		for(uint8_t j=0; j<NUM_FILTERS; ++j){ 
-			if(tmpMsg.id == nodes[i]->filters[j]){
-				nodes[i]->handle[j](&tmpMsg);
+			if(tmpMsg.id == nodes[i].filters[j]){
+				nodes[i].handle[j](&tmpMsg);
 			}
 		}
 	}

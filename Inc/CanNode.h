@@ -1,9 +1,9 @@
 /**
  * \mainpage CanNode library documentation
  *
- * \section About The CanNode Library
+ * \section About The %CanNode Library
  *
- * The CanNode library attempts to provide an easy to use interface for 
+ * The %CanNode library attempts to provide an easy to use interface for 
  * connecting CANBus devices together over a network. 
  *
  * \section Important Files
@@ -30,11 +30,13 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdlib.h>
 #include "CanTypes.h"
 #include "can.h"
+#include "flash.h"
 
 /// \brief Initilize a CanNode from given parameters.
-uint16_t CanNode_init(CanNode* node, CanNodeType type, uint16_t id);
+CanNode* CanNode_init(CanNode** node, CanNodeType type, uint16_t id, bool force);
 /// \brief Add a filter and handler to a given CanNode.
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
 /// \brief Check all initilized CanNodes for messages and call callbacks.
@@ -102,7 +104,7 @@ CanState CanNode_sendDataArr_uint16 (const CanNode* node, uint16_t* data, uint8_
  * \name getData Functions
  * These functions get data of various integer types from a CanMessage. They are
  * non-blocking. If the data is not of the same type as the called function
- * INVALID_TYPE is returned.
+ * \ref INVALID_TYPE is returned.
  */
 //@{
 /// \brief Get a signed 8-bit integer from a CanMessage.
@@ -123,7 +125,7 @@ CanState CanNode_getData_uint32 (const CanMessage* msg, uint32_t* data);
  * \name getDataArr Functions
  * These functions get arrays of various integer types from a CanMessage. They are
  * non-blocking. If the data is not of the same type as the called function
- * INVALID_TYPE is returned.
+ * \ref INVALID_TYPE is returned.
  */
 //@{
 /// \brief Get an array of signed 8-bit integers from a CanMessage.

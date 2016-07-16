@@ -14,7 +14,7 @@
 
 #ifndef MAX_NODES
 	/// Maximum number of nodes stored in flash. Can be overwriten by redefinition
-	#define MAX_NODES 3
+	#define MAX_NODES 4
 #endif
 
 #ifndef NUM_FILTERS
@@ -164,12 +164,8 @@ typedef struct {
 	filterHandler handle[NUM_FILTERS]; ///< array of function pointers to call
 	                                      ///< when a id in filters is found
 	CanNodeType sensorType;            ///< Type of sensor
-	char* nodeName;                    ///< Name of the node 
+	char nodeInfoBuff[200];
                                           ///< (points to an address in flash)
-	uint8_t nodeNameLen;               ///< Length of the string
-	char* nodeInfo;                    ///< Information about the sensor
-	                                      ///< (points to an area in flash)
-	uint16_t nodeInfoLen;              ///< Length of the string
 } CanNode;
 
 #endif //_CAN_TYPES_H_
