@@ -51,6 +51,29 @@ FlashError flashErasePage(uint32_t addr) {
 	return status;
 }
 
+/**
+ * Copy a page (1K) of flash. If erasing is enabled it will erase the page 
+ * pointed to by dest_addr then copy the page pointed to by src_addr to dest_addr
+ *
+ * \param src_addr Address of page to copy from
+ * \param dest_addr Adress of page to copy to
+ * \param erase Erase destination? yes (true), no (false)
+ *
+ * \returns \ref FlashError stating whether every flash opperation was successfull 
+ */
+FlashError flashCopyPage(uint32_t src_addr, uint32_t dest_addr, bool erase) {
+	flashUnlock();
+	if(erase){
+		flashErasePage(dest_addr);
+	}
+
+	for(int i=0; i<1024; i+=2){
+		flashWrite_16(dest_addr+i, *((uint16_t*) src_addr+i));	
+	}
+	
+	return FLASH_OK;
+}
+
 FlashError flashWrite_16(uint32_t addr, uint16_t data) {
 	FlashError status;
 

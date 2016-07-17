@@ -20,7 +20,7 @@
 #define IO3_ADC ADC_CHSELR_CHSEL9
 
 //transmit code or recieve code
-//#define RECIEVE
+#define RECIEVE
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -61,12 +61,16 @@ int main(void) {
 	
 #ifndef RECIEVE
 	//setup basic can frame
-	CanNode_init(&node, ANALOG, ANALOG, true);
-	CanNode_init(&hiNode, UNCONFIG, UNCONFIG, true);
+	node = CanNode_init(ANALOG, ANALOG, true);
+	hiNode = CanNode_init(UNCONFIG, UNCONFIG, true);
 	CanNode_addFilter(node, SWITCH, switchHandle);
+	CanNode_setName(node, "Potentiometer", sizeof("Potentiometer"));
+	const char info[] = "Outputs a 0-4096 value representing the position \
+of a potentiometer every 5ms";
+	CanNode_setInfo(node, info, sizeof(info));
 #else
-	CanNode_init(&node, SWITCH, SWITCH, true);
-	CanNode_addFilter(&node, ANALOG, nodeHandler);
+	node = CanNode_init(SWITCH, SWITCH, true);
+	CanNode_addFilter(node, ANALOG, nodeHandler);
 	CanNode_addFilter(node, UNCONFIG, getFunky);
 #endif
 
@@ -104,6 +108,10 @@ int main(void) {
 #ifndef RECIEVE
 			//int8_t msg[4] = "Hi!";
 			//CanNode_sendDataArr_int8(&hiNode, msg, 3);
+#else
+			char name[30];
+			CanNode_getName(ANALOG, name, 30, 50);
+			CanNode_getInfo(ANALOG, name, 30, 50);
 #endif
 		}
 

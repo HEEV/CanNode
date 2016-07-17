@@ -20,17 +20,15 @@ static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
  * to flash. If a CanNode of the same type and id was previously saved to flash
  * that will be retrieved instead of making a new one. 
  * 
- * \param[out] node Pointer to a CanNode. This will be set to a memory location 
- * in the flash area by the function if it succeeds. If the function fails it
- * will be set to NULL.
  * \param[in] type Gives the sensor type
  * \param[in] id CAN Address, use the CanNodeType type plus a constant.
  * \param[in] force Force the creation of a new node, if an old one is not found 
  * in flash memory create it. 
  *
- * \returns the id of the node if successfull and 0 if unsuccessfull
+ * \returns the address of a \ref CanNode struct that stores the can information.
+ * This information is necessary for using any of the sendData functions
  */
-CanNode* CanNode_init(CanNode** node, CanNodeType type, uint16_t id, bool force) {
+CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 	static bool has_run = false;
 	static uint8_t usedNodes = 0;
 
@@ -42,13 +40,11 @@ CanNode* CanNode_init(CanNode** node, CanNodeType type, uint16_t id, bool force)
 		has_run = true;
 	}
 
-	*node = NULL;
 	//check if a node of that type exists
 	for(uint8_t i=0; i<MAX_NODES; ++i){
 		//check for an id and type that matches the ones specified
 		if(nodes[i].id == id && nodes[i].sensorType == type){
 			//its a match!
-			*node = &nodes[i];
 			//fill a spot in used nodes
 			usedNodes |= 1<<i;
 			return &nodes[i];
@@ -56,19 +52,24 @@ CanNode* CanNode_init(CanNode** node, CanNodeType type, uint16_t id, bool force)
 	}
 	if(!force) {
 		//did not find anything
-		return 0;
+		return NULL;
 	}
+
+	//did we find a space?
+	CanNode* node = NULL;
+	//copy to ram while erasing
+	CanNode nodebak[MAX_NODES];
+	memcpy(nodebak, nodes, sizeof(CanNode)*MAX_NODES);
 
 	flashUnlock();
 	//erase flash
 	flashErasePage((uint32_t) &nodes[0]);
-	flashLock();
+
 	for(uint8_t i=0; i<MAX_NODES; ++i){
-		if((usedNodes & (1<<i)) == 0){
+		//Found open space and we haven't stored our modified node yet.
+		if((usedNodes & (1<<i)) == 0 && node == NULL){
 			//found a happy place
-			*node = &nodes[i];
 			
-			flashUnlock();
 			//sensor type
 			flashWrite_16((uint32_t) &nodes[i].sensorType, type);
 
@@ -77,15 +78,33 @@ CanNode* CanNode_init(CanNode** node, CanNodeType type, uint16_t id, bool force)
 
 			//set node to that id
 			flashWrite_16((uint32_t) &nodes[i].id, id);
-			flashLock();
 
 			//fill a spot in used nodes
 			usedNodes |= 1<<i;
-			return &nodes[i];
+			node = &nodes[i];
+		}
+		else if(usedNodes & (1<<i)) { //fill the rest of the nodes
+			//set id
+			flashWrite_16((uint32_t) &nodes[i].id, nodebak[i].id);
+			//set sensor type
+			flashWrite_16((uint32_t) &nodes[i].sensorType, nodebak[i].sensorType);
+
+			//set filters and handlers
+			for(uint8_t j=0; j<NUM_FILTERS; ++j){
+				flashWrite_16((uint32_t) &nodes[i].filters[j], nodebak[i].filters[j]);
+				//write the filter handler
+				flashWrite_32((uint32_t) &nodes[i].handle[j], 
+						      (uint32_t) nodebak[i].handle[j]);
+			}
+
+			//copy name and info
+			CanNode_setName(&nodes[i], &nodebak[i].nodeInfoBuff[0], MAX_NAME_LEN);
+			CanNode_setInfo(&nodes[i], &nodebak[i].nodeInfoBuff[MAX_NAME_LEN], MAX_INFO_LEN);
 		}
 	}
 
-	return 0;//no open slots
+	flashLock();
+	return node;//returns null if no empty spots found
 }
 
 /**
@@ -150,7 +169,7 @@ void CanNode_getName(uint16_t id, char* name, uint8_t buff_len, uint32_t timeout
 		//get the next buffer
 		can_rx(&msg, 5);
 		//check if it is from our id
-		if(msg.id != id || (msg.data[0] & 0x05) != CAN_NAME_INFO){
+		if(msg.id != id || (msg.data[0] & 0x1F) != CAN_NAME_INFO){
 			continue;
 		}
 		//get all the data from this buffer
@@ -166,7 +185,7 @@ void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeou
 	//send a request to the specified id
 	msg.id = id;
 	msg.len = 1; msg.rtr = false;
-	msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
+	msg.data[0] = CAN_GET_INFO | (CAN_INT8 << 5);
 	can_tx(&msg, 5);
 
 	//get start time
@@ -182,7 +201,7 @@ void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeou
 		//get the next buffer
 		can_rx(&msg, 5);
 		//check if it is from our id
-		if(msg.id != id || (msg.data[0] & 0x05) != CAN_NAME_INFO){
+		if(msg.id != id || (msg.data[0] & 0x1F) != CAN_NAME_INFO){
 			continue;
 		}
 		//get all the data from this buffer
@@ -196,11 +215,90 @@ void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len) {
 	//store the data in buffer into the space pointed to by node->name
 	//this address space resides in flash so a special process is taken
 	
-	for(uint8_t i=0; *name!='\0' && i<30 && i<buff_len; i+=2){
+	for(uint8_t i=0; 
+		*name!='\0' && //is it a null character?
+		*name!= '\377' && //is it empty flash?
+		i<MAX_NAME_LEN && //are we out of range of the total buffer
+		i<buff_len; //are we out of range of the passed buffer
+	    i+=2){
+
 		uint16_t chars = name[i] | (name[i+1] << 8);
 		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], chars);
 	}
 }	
+
+void CanNode_setInfo(const CanNode* node, const char* info, uint8_t buff_len) {
+	//store the data in buffer into the space pointed to by node->name
+	//this address space resides in flash so a special process is taken
+	
+	
+	for(uint8_t i=0; 
+	    *info!='\0' && //is it a null character?
+	    *info!= '\377' && //is it empty flash?
+		i<MAX_INFO_LEN && //are we out of range of the total buffer
+		i<buff_len; //are we out of range of the passed buffer
+	    i+=2){
+
+		uint16_t chars = info[i] | (info[i+1] << 8);
+		flashWrite_16((uint32_t) &node->nodeInfoBuff[i+MAX_NAME_LEN], chars);
+	}
+}
+
+
+void CanNode_sendName(const CanNode* node, uint16_t id){
+	CanMessage msg;
+	msg.id = id;
+	msg.rtr = false;
+	msg.data[0] = CAN_NAME_INFO | CAN_INT8 << 5;
+
+	//fill buffers and send them
+	uint8_t i=0;
+	while(node->nodeInfoBuff[i] != '\0' && 
+		  node->nodeInfoBuff[i] != '\377') {
+
+		//break if end of name has been reached
+		for(msg.len=1; msg.len<8 && i<MAX_NAME_LEN; ++msg.len, ++i){
+			//set data
+			msg.data[msg.len] = node->nodeInfoBuff[i];
+
+			//check data
+			if(msg.data[msg.len] == '\0' || msg.data[msg.len] == 0xff){
+				break;
+			}
+		}
+		if(msg.len>8){
+			msg.len=8;
+		}
+		can_tx(&msg, 5);
+	}
+}
+void CanNode_sendInfo(const CanNode* node, uint16_t id) {
+	CanMessage msg;
+	msg.id = id;
+	msg.rtr = false;
+	msg.data[0] = CAN_NAME_INFO | CAN_INT8 << 5;
+
+	//fill buffers and send them
+	uint8_t i=MAX_NAME_LEN;
+	while(node->nodeInfoBuff[i] != '\0' && 
+		  node->nodeInfoBuff[i] != '\377') {
+
+		//break if end of name has been reached
+		for(msg.len=1; msg.len<8 && i<TOTAL_INFO_LEN; ++msg.len, ++i){
+			//set data
+			msg.data[msg.len] = node->nodeInfoBuff[i];
+
+			//check data
+			if(msg.data[msg.len] == '\0' || msg.data[msg.len] == 0xff){
+				break;
+			}
+		}
+		if(msg.len>8){
+			msg.len=8;
+		}
+		can_tx(&msg, 5);
+	}
+}
 
 //getter and setter functions -------------------------------------------------
 
@@ -611,4 +709,16 @@ void CanNode_checkForMessages() {
 
 //TODO
 void CanNode_nodeHandler(CanNode* node, CanMessage* msg) {
+	CanNodeMsgType type = msg->data[0] & 0x1F;
+
+	switch(type){
+		case CAN_GET_NAME:
+			CanNode_sendName(node, msg->id);
+			break;
+		case CAN_GET_INFO:
+			CanNode_sendInfo(node, msg->id);
+			break;
+		default:
+			break;
+	}
 }

@@ -27,6 +27,13 @@
 /// Key to unlokck stm32 flash memory
 #define FLASH_FKEY2 0xCDEF89AB
 
+/// Total length of the name/info string
+#define TOTAL_INFO_LEN 200
+/// Maximum length of a name string for the CanNode_getName()
+#define MAX_NAME_LEN 30
+/// Maximum length of a info string for the CanNode_getInfo()
+#define MAX_INFO_LEN TOTAL_INFO_LEN - MAX_NAME_LEN
+
 /**
  * \enum canBitrate
  * \brief Defines various avalible bitrates for the CANBus
@@ -164,8 +171,7 @@ typedef struct {
 	filterHandler handle[NUM_FILTERS]; ///< array of function pointers to call
 	                                      ///< when a id in filters is found
 	CanNodeType sensorType;            ///< Type of sensor
-	char nodeInfoBuff[200];
-                                          ///< (points to an address in flash)
+	char nodeInfoBuff[TOTAL_INFO_LEN]; ///< (points to an address in flash)
 } CanNode;
 
 #endif //_CAN_TYPES_H_

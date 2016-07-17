@@ -24,6 +24,7 @@
 
 #include <stm32f0xx.h>
 #include <stdint.h>
+#include <stdbool.h>
 
 /**
  * \enum FlashError
@@ -47,6 +48,8 @@ void flashLock();
 //@{
 /// \brief Erase a page of memory
 FlashError flashErasePage(uint32_t addr);
+/// \brief Copy a page (1k) of flash.
+FlashError flashCopyPage(uint32_t src_addr, uint32_t dest_addr, bool erase);
 
 /// \brief Write a piece of 16-bit data
 FlashError flashWrite_16(uint32_t addr, uint16_t data);

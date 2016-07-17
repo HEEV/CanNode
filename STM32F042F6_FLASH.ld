@@ -36,7 +36,8 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 MEMORY
 {
 FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 31K
-CANINFO (r)    : ORIGIN = 0x08007C00, LENGTH = 1K /*CanInfo stuff on page 63*/
+CANBAK (r)  : ORIGIN = 0x08007800, LENGTH = 1K /*Backup of CanInfo on p30*/
+CANINFO (r)    : ORIGIN = 0x08007C00, LENGTH = 1K /*CanInfo stuff on p31*/
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 6K
 }
 
@@ -104,6 +105,15 @@ SECTIONS
     KEEP (*(.fini_array*))
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
+
+  /* 1K section for backing up CANINFO while it is being erased */
+  .canbak :
+  {
+	  . = ALIGN(4);
+	  *(.canbak)
+	  *(.canbak*)
+	  . = ALIGN(4);
+  } >CANBAK
 
   /* 1K section at the end of flash for storing can info */
   .can :

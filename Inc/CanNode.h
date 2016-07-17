@@ -31,12 +31,14 @@
 #include <stdint.h>
 #include <stdbool.h>
 #include <stdlib.h>
+#include <string.h>
 #include "CanTypes.h"
 #include "can.h"
 #include "flash.h"
 
+
 /// \brief Initilize a CanNode from given parameters.
-CanNode* CanNode_init(CanNode** node, CanNodeType type, uint16_t id, bool force);
+CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force);
 /// \brief Add a filter and handler to a given CanNode.
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
 /// \brief Check all initilized CanNodes for messages and call callbacks.
@@ -61,7 +63,12 @@ void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeou
 /// \brief Set the name string for a CanNode into flash.
 void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len);
 /// \brief Set the info string for a CanNode into flash.
-void CanNode_setInfo(const CanNode* node, const char* info, uint16_t buff_len);
+void CanNode_setInfo(const CanNode* node, const char* info, uint8_t buff_len);
+
+/// \brief Send the name string over the CANBus
+void CanNode_sendName(const CanNode* node, uint16_t id);
+/// \brief Send the info string over the CANBus
+void CanNode_sendInfo(const CanNode* node, uint16_t id);
 //@}
 
 /** 
