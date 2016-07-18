@@ -1,17 +1,3 @@
-/**
- * \mainpage CanNode library documentation
- *
- * \section About The %CanNode Library
- *
- * The %CanNode library attempts to provide an easy to use interface for 
- * connecting CANBus devices together over a network. 
- *
- * \section Important Files
- *
- * The most important file is CanNode.h it provides functions for reading and
- * writing to devices on the CANBus. 
- *
- */
 
 /** 
  * \file CanNode.h
@@ -46,6 +32,7 @@ void CanNode_checkForMessages();
 
 
 /** 
+ * \anchor infoFunctions
  * \name Info Functions
  * These functions get or set data in the form of strings saved to the flash of
  * the chip. 
@@ -72,6 +59,7 @@ void CanNode_sendInfo(const CanNode* node, uint16_t id);
 //@}
 
 /** 
+ * \anchor sendData
  * \name sendData Functions
  * These functions that send data over the CANBus and support various integer
  * types of data. They are non-blocking.

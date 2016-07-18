@@ -1,5 +1,5 @@
 /**
- * \file CanNode.c
+ * CanNode.c
  * \brief implements functions for CanNode devices
  *
  * \author Samuel Ellicott
@@ -34,6 +34,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 
 	//if this is the first run clear list of nodes
 	if(!has_run){
+		can_set_bitrate(CAN_BITRATE_500K);
 		can_init();
 		can_enable();
 		newMessage=false;
