@@ -10,15 +10,14 @@ CMSIS_STM32=Drivers/CMSIS/Device/ST/STM32F0xx
 TARGET=stm32f0xx
 
 # Put your source files here (or *.cflashing a hex file on a stm32f4discovery, etc)
-SRCS = $(SRC_DIR)/main.c
+#SRCS = $(SRC_DIR)/main.c 
 
-SRCS += $(SRC_DIR)/*.c
+SRCS := $(SRC_DIR)/*.c
 SRCS += $(STM_LIB_SRC)/Src/$(TARGET)*.c
-#SRCS += $(STM_USB_CORE)/Src/*.c
-#SRCS += $(STM_USB_CDC)/Src/*.c
+SRCS += $(STM_USB_CORE)/Src/*.c
+SRCS += $(STM_USB_CDC)/Src/*.c
 SRCS += $(CMSIS_STM32)/Source/Templates/system_$(TARGET).c
-SRCS += $(CMSIS_STM32)/Source/Templates/gcc/startup_stm32f042x6.s
-
+ASM += $(CMSIS_STM32)/Source/Templates/gcc/startup_stm32f042x6.s
 
 # Binaries will be generated with this name (.elf, .bin, .hex, etc)
 PROJ_NAME=CanNode
@@ -29,35 +28,40 @@ PROJ_NAME=CanNode
 CC=arm-none-eabi-gcc
 OBJCOPY=arm-none-eabi-objcopy
 
-CFLAGS  = -Os -Wall -g -TSTM32F042F6_FLASH.ld
-CFLAGS += --specs=nosys.specs -mthumb -mcpu=cortex-m0 
-CFLAGS += -I. --std=gnu11
-CFLAGS += -fdata-sections -ffunction-sections -Wl,--gc-sections
+ODIR=obj
+
+LDFLAGS += -TSTM32F042F6_FLASH.ld -fdata-sections -ffunction-sections -Wl,--gc-sections
+
+CFLAGS += -Os -Wall -g
+CFLAGS += --std=gnu11 --specs=nosys.specs -mthumb -mcpu=cortex-m0
 
 # Include files from STM libraries
 CFLAGS += -I$(INC_DIR)
 CFLAGS += -I$(CMSIS_CORE)
 CFLAGS += -I$(CMSIS_STM32)/Include
 CFLAGS += -I$(STM_LIB_SRC)/Inc
-#CFLAGS += -I$(STM_USB_CORE)/Inc
-#CFLAGS += -I$(STM_USB_CDC)/Inc
+CFLAGS += -I$(STM_USB_CORE)/Inc
+CFLAGS += -I$(STM_USB_CDC)/Inc
 
-OBJS = $(SRCS:.c=.o)
+#expand wildcards in sources
+SRC_EXP := $(wildcard $(SRCS))
 
+ASM_OBJ := $(ASM:.s=.o)
+OBJS := $(SRC_EXP:.c=.o)
 
-.PHONY: proj
+.PHONY: clean all
 
-all: proj 
+.c.o:
+	$(CC) $(CFLAGS) -c $< -o $@
 
-proj: $(PROJ_NAME).elf
+.s.o:
+	$(CC) $(CFLAGS) -c $< -o $@
 
-$(PROJ_NAME).elf: $(SRCS)
-	$(CC) $(CFLAGS) $^ -o $@ 
-	$(OBJCOPY) -O ihex $(PROJ_NAME).elf $(PROJ_NAME).hex
-	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
+all: $(OBJS) $(ASM_OBJ)
+	$(CC) $(LDFLAGS) $(OBJS) $(ASM_OBJ) -o $(PROJ_NAME).elf
 
 clean:
-	rm -f *.o $(PROJ_NAME).elf $(PROJ_NAME).hex $(PROJ_NAME).bin
+	rm -f $(OBJS) $(ASM_OBJ) $(PROJ_NAME).elf $(PROJ_NAME).bin
 
 # Flash the STM32F4
 flash: all
