@@ -10,7 +10,6 @@ CMSIS_STM32=Drivers/CMSIS/Device/ST/STM32F0xx
 TARGET=stm32f0xx
 
 # Put your source files here (or *.cflashing a hex file on a stm32f4discovery, etc)
-#SRCS = $(SRC_DIR)/main.c 
 
 SRCS := $(SRC_DIR)/*.c
 SRCS += $(STM_LIB_SRC)/Src/$(TARGET)*.c
@@ -30,18 +29,18 @@ OBJCOPY=arm-none-eabi-objcopy
 
 ODIR=obj
 
-LDFLAGS += -TSTM32F042F6_FLASH.ld -fdata-sections -ffunction-sections -Wl,--gc-sections
-
 CFLAGS += -Os -Wall -g
 CFLAGS += --std=gnu11 --specs=nosys.specs -mthumb -mcpu=cortex-m0
+CFLAGS += -fdata-sections -ffunction-sections -TSTM32F042F6_FLASH.ld -Wl,--gc-sections
+
 
 # Include files from STM libraries
-CFLAGS += -I$(INC_DIR)
-CFLAGS += -I$(CMSIS_CORE)
-CFLAGS += -I$(CMSIS_STM32)/Include
-CFLAGS += -I$(STM_LIB_SRC)/Inc
-CFLAGS += -I$(STM_USB_CORE)/Inc
-CFLAGS += -I$(STM_USB_CDC)/Inc
+INCLUDE += -I$(INC_DIR)
+INCLUDE += -I$(CMSIS_CORE)
+INCLUDE += -I$(CMSIS_STM32)/Include
+INCLUDE += -I$(STM_LIB_SRC)/Inc
+INCLUDE += -I$(STM_USB_CORE)/Inc
+INCLUDE += -I$(STM_USB_CDC)/Inc
 
 #expand wildcards in sources
 SRC_EXP := $(wildcard $(SRCS))
@@ -49,19 +48,29 @@ SRC_EXP := $(wildcard $(SRCS))
 ASM_OBJ := $(ASM:.s=.o)
 OBJS := $(SRC_EXP:.c=.o)
 
-.PHONY: clean all
+.PHONY: clean all size
 
 .c.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(INCLUDE) $(CFLAGS) -c $< -o $@
 
 .s.o:
-	$(CC) $(CFLAGS) -c $< -o $@
+	$(CC) $(INCLUDE) $(CFLAGS) -c $< -o $@
 
-all: $(OBJS) $(ASM_OBJ)
-	$(CC) $(LDFLAGS) $(OBJS) $(ASM_OBJ) -o $(PROJ_NAME).elf
+all: pot switch
+
+pot: pot_main.o $(OBJS) $(ASM_OBJ)
+	$(CC)  $(CFLAGS) $^ -o $(PROJ_NAME)-switch.elf
+	$(OBJCOPY) -O binary $(PROJ_NAME)-switch.elf $(PROJ_NAME)-switch.bin
+
+switch: switch_main.o $(OBJS) $(ASM_OBJ)
+	$(CC) $(CFLAGS) $^ -o $(PROJ_NAME)-pot.elf
+	$(OBJCOPY) -O binary $(PROJ_NAME)-pot.elf $(PROJ_NAME)-pot.bin
 
 clean:
-	rm -f $(OBJS) $(ASM_OBJ) $(PROJ_NAME).elf $(PROJ_NAME).bin
+	rm -f *.o $(OBJS) $(ASM_OBJ) $(PROJ_NAME)*.elf $(PROJ_NAME)*.bin
+
+size: all
+	size $(PROJ_NAME)*.elf
 
 # Flash the STM32F4
 flash: all
@@ -69,5 +78,6 @@ flash: all
 
 stflash: all
 	st-flash write $(PROJ_NAME).bin 0x08000000
+
 docs: 
 	doxygen Doxyfile
