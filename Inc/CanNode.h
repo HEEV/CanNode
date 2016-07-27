@@ -36,8 +36,8 @@ void CanNode_checkForMessages();
  * These functions get or set data in the form of strings saved to the flash of
  * the chip. 
  *
- * *NOTE*: these functions are blocking and any important information
- * dilivered while this function is in progress will be lost. 
+ * *NOTE: these functions are blocking and any important information
+ * dilivered while this function is in progress will be lost.* 
  */
 //@{
 /// \brief Get an name string from a CAN id.
@@ -45,7 +45,6 @@ void CanNode_getName(uint16_t id, char* name, uint8_t buff_len, uint32_t timeout
 /// \brief Get an info string from a CAN id.
 void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeout);
 
-//These functions set the name and info strings into flash memory of the chip
 /// \brief Set the name string for a CanNode into flash.
 void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len);
 /// \brief Set the info string for a CanNode into flash.
@@ -95,6 +94,7 @@ CanState CanNode_sendDataArr_uint16 (const CanNode* node, uint16_t* data, uint8_
 //@}
 
 /** 
+ * \anchor getData
  * \name getData Functions
  * These functions get data of various integer types from a CanMessage. They are
  * non-blocking. If the data is not of the same type as the called function
