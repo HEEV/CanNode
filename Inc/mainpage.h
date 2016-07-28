@@ -3,7 +3,7 @@
  *
  * \tableofcontents
  *
- * \section About The CanNode Library
+ * \section About About The CanNode Library
  *
  * The %CanNode library attempts to provide an easy to use interface for 
  * connecting CANBus devices together over a network. The library targets stm32 
@@ -67,8 +67,33 @@
  * }
  *
  * ~~~~~~~~~~~~~
+ * 
+ * Of course code for clock and GPIO initilization would also be necessary.
  *
- * \section Important Files
+ * \subsection Overriding Overriding Other Nodes
+ *
+ * For devices which want to override data from another device on the bus. eg.
+ * a computer that wants to start the engine, overriding a start engine button.
+ * It is a good idea to just make a node in ram instead of using CanNode_init().
+ * This is so that calls to CanNode_getName() or CanNode_getInfo() do not result
+ * in conflicting or corrupted data to the caller. 
+ *
+ * The main problem (and benefit) of making a node in ram is that these nodes are not 
+ * handled in CanNode_checkForMessages(). This means that the default %CanNode 
+ * handleing code will not run for this node. Therefore filters and handlers added
+ * with CanNode_addFilter() will not run either.
+ *
+ * Example code
+ *
+ * ~~~~~~~~~~~~~ {.c}
+ * uint16_t data; //place to put data you want to write
+ * CanNode node;  //temporary node in ram, changes will not be saved after restart 
+ * node.id = id_to_override; //id of the node to override
+ *
+ * CanNode_sendData_uint16(node, data); //send the data
+ * ~~~~~~~~~~~~~
+ *
+ * \section Files Important Files
  *
  * The most important file is CanNode.h it provides functions for reading and
  * writing to devices on the CANBus. 

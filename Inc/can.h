@@ -13,7 +13,11 @@
 #ifndef _CAN_H
 #define _CAN_H
 
+/// value returned by can_add_filter functions if no filter was added
+#define CAN_FILTER_ERROR 0xFFFF
+
 #include <stm32f0xx_hal.h>
+#include <stdint.h>
 #include <stdbool.h>
 #include "CanTypes.h"
 
@@ -21,12 +25,16 @@
 void can_init(void);
 /// \brief Enable CAN hardware.
 void can_enable(void);
-/// \brief Disable CAN hardware.
-void can_disable(void);
+/// \brief Put CAN hardware to sleep.
+void can_sleep(void);
 /// \brief Set the speed of the CANBus.
 void can_set_bitrate(canBitrate bitrate);
-/// \brief make the CAN hardware silent on the bus.
-void can_set_silent(uint8_t silent);
+
+/// \brief Add a filter to the can hardware with an id
+uint16_t can_add_filter_id(uint16_t id);
+/// \brief Add a filter to the can hardware with a mask
+uint16_t can_add_filter_mask(uint16_t id, uint16_t mask);
+
 /// \brief Send a CanMessage over the bus.
 CanState can_tx(CanMessage *tx_msg, uint32_t timeout);
 /// \brief Get a CanMessage from the hardware if it is availible.

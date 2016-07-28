@@ -90,7 +90,8 @@ typedef enum {
  */
 typedef struct {
 	uint16_t id;     ///< ID of the sender
-	uint8_t len;     ///< length of the message
+	uint8_t len;     ///< Length of the message
+	uint8_t fmi;     ///< Filter mask index (what filter triggered message)
 	bool rtr;        ///< Asking for data (true) or sending data (false)
 	uint8_t data[8]; ///< Data
 } CanMessage;	

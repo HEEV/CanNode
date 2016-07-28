@@ -99,6 +99,10 @@ CanState CanNode_sendDataArr_uint16 (const CanNode* node, uint16_t* data, uint8_
  * These functions get data of various integer types from a CanMessage. They are
  * non-blocking. If the data is not of the same type as the called function
  * \ref INVALID_TYPE is returned.
+ * 
+ * These functions are useful for data parsing in a handler function of the type
+ * passed to CanNode_addFilter() where a CanMessage pointer is passed to the 
+ * handler as input.
  */
 //@{
 /// \brief Get a signed 8-bit integer from a CanMessage.

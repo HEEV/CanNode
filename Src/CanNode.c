@@ -53,8 +53,8 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 
 	//if this is the first run clear list of nodes
 	if(!has_run){
-		can_set_bitrate(CAN_BITRATE_500K);
 		can_init();
+		can_set_bitrate(CAN_BITRATE_500K);
 		can_enable();
 		newMessage=false;
 		has_run = true;
@@ -65,6 +65,15 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 		//check for an id and type that matches the ones specified
 		if(nodes[i].id == id && nodes[i].sensorType == type){
 			//its a match!
+			
+			//add filters to hardware
+			for(uint8_t j=0; j<NUM_FILTERS; ++j){
+				if(nodes[i].filters[j] != UNUSED_FILTER && 
+				   nodes[i].filters[j] > 52 ){ //id's below 52 are reserved
+					can_add_filter_id(nodes[i].filters[j]);
+				}
+			}
+
 			//fill a spot in used nodes
 			usedNodes |= 1<<i;
 			return &nodes[i];
@@ -75,6 +84,15 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 			//check if the space has been used and was not given to another
 			//caller
 			if(nodes[i].id != 0xFFFF && (usedNodes & (1<<i)) == 0){
+				
+				//add filters to hardware
+				for(uint8_t j=0; j<NUM_FILTERS; ++j){
+					if(nodes[i].filters[j] != UNUSED_FILTER && 
+					   nodes[i].filters[j] > 52){ //id's below 52 are reserved
+						can_add_filter_id(nodes[i].filters[j]);
+					}
+				}
+
 				//fill a spot in used nodes
 				usedNodes |= 1<<i;
 				return &nodes[i];
@@ -103,6 +121,10 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 
 			//reset filters, filters should already be reset b/c flash erase
 			//sets all values to 0xffff==UNUSED_FILTER.
+			
+			//add a filter so that the can hardware catches id's pertaining to 
+			//the base id.
+			can_add_filter_id(id);
 
 			//set node to that id
 			flashWrite_16((uint32_t) &nodes[i].id, id);
@@ -140,6 +162,12 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
  * Saves a filter id and a handler to a node in flash memory. The function also
  * accepts a function which gets called if a message from that id is avalible.
  *
+ * Ids from 0 - 52 are reserved for the use of passing the return value of
+ * can_add_filter_mask() to the function as a id. This allows for the use of 
+ * id masks instead of identifier lists for filtering. It is adviseable to force
+ * the reintilization of the node by passing true to the force paramater of 
+ * CanNode_init().
+ *
  * \param[in,out] node pointer to a node saved in flash memory
  * \param[in] filter id of the device that should be handled by handle
  * \param[in] handle function used to handle the filter
@@ -147,6 +175,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
  * \returns true if the filter was added, false if otherwise.
  *
  * \see CanNode_init()
+ * \see can_add_filter_mask() for using mask filtering
  */
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 	if(filter > 0x7FF || handle == NULL){
@@ -160,15 +189,13 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 			flashWrite_16((uint32_t) &node->filters[i], filter);
 			//save a pointer to the handler function
 			flashWrite_32((uint32_t) &node->handle[i], (uint32_t) handle);
+
+			//if not a reseved address, add to hardware filtering
+			if(node->id > 52){
+				can_add_filter_id(node->id);
+			}
 			
-			//check if write worked
-			if(node->handle[i] == handle){
-				return true;
-			}
-			else{
-				return false;
-			}
-			//return true; //Sucess! Filter has been added
+			return true; //Sucess! Filter has been added
 		}
 	}
 
@@ -809,7 +836,17 @@ void CanNode_checkForMessages() {
 		
 		//call callbacks for the user defined filters
 		for(uint8_t j=0; j<NUM_FILTERS; ++j){ 
-			if(tmpMsg.id == nodes[i].filters[j] && nodes[i].handle[j] != NULL){
+			if(tmpMsg.id == nodes[i].filters[j] && 
+			   nodes[i].handle[j] != NULL){
+
+				//call handler function
+				nodes[i].handle[j](&tmpMsg);
+			}
+			//check if the filter match equals a filter id
+			else if(tmpMsg.fmi == nodes[i].filters[j] && //filter matches 
+					nodes[i].handle[j] != NULL){
+
+				//call handler function
 				nodes[i].handle[j](&tmpMsg);
 			}
 		}

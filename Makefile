@@ -1,22 +1,24 @@
 # Put your STM32F4 library code directory here
-SRC_DIR=Src
+CAN_DIR=Src
 INC_DIR=Inc
-STM_LIB_SRC=Drivers/STM32F0xx_HAL_Driver
-STM_USB_CORE=Middlewares/ST/STM32_USB_Device_Library/Core
-STM_USB_CDC=Middlewares/ST/STM32_USB_Device_Library/Class/CDC
-CMSIS_CORE=Drivers/CMSIS/Include
-CMSIS_STM32=Drivers/CMSIS/Device/ST/STM32F0xx
+LIB_DIR=lib
+
+STM_LIB_SRC = Drivers/STM32F0xx_HAL_Driver
+STM_USB_CORE = Middlewares/ST/STM32_USB_Device_Library/Core
+STM_USB_CDC = Middlewares/ST/STM32_USB_Device_Library/Class/CDC
+CMSIS_CORE = Drivers/CMSIS/Include
+CMSIS_STM32 = Drivers/CMSIS/Device/ST/STM32F0xx
 
 TARGET=stm32f0xx
 
 # Put your source files here (or *.cflashing a hex file on a stm32f4discovery, etc)
 
-SRCS := $(SRC_DIR)/*.c
-SRCS += $(STM_LIB_SRC)/Src/$(TARGET)*.c
-SRCS += $(STM_USB_CORE)/Src/*.c
-SRCS += $(STM_USB_CDC)/Src/*.c
-SRCS += $(CMSIS_STM32)/Source/Templates/system_$(TARGET).c
-ASM += $(CMSIS_STM32)/Source/Templates/gcc/startup_stm32f042x6.s
+CAN_SRC := $(CAN_DIR)/*.c
+STM_SRC := $(STM_LIB_SRC)/Src/$(TARGET)*.c
+STM_SRC += $(STM_USB_CORE)/Src/*.c
+STM_SRC += $(STM_USB_CDC)/Src/*.c
+STM_SRC += $(CMSIS_STM32)/Source/Templates/system_$(TARGET).c
+STARTUP := $(CMSIS_STM32)/Source/Templates/gcc/startup_stm32f042x6.s
 
 # Binaries will be generated with this name (.elf, .bin, .hex, etc)
 PROJ_NAME=CanNode
@@ -25,6 +27,7 @@ PROJ_NAME=CanNode
 #######################################################################################
 
 CC=arm-none-eabi-gcc
+AR=arm-none-eabi-ar
 OBJCOPY=arm-none-eabi-objcopy
 
 ODIR=obj
@@ -42,11 +45,12 @@ INCLUDE += -I$(STM_LIB_SRC)/Inc
 INCLUDE += -I$(STM_USB_CORE)/Inc
 INCLUDE += -I$(STM_USB_CDC)/Inc
 
-#expand wildcards in sources
-SRC_EXP := $(wildcard $(SRCS))
+STM_SRC_EXP := $(wildcard $(STM_SRC))
+STM_OBJ := $(STM_SRC_EXP:.c=.o)
+STM_OBJ += $(STARTUP:.s=.o)
 
-ASM_OBJ := $(ASM:.s=.o)
-OBJS := $(SRC_EXP:.c=.o)
+CAN_SRC_EXP := $(wildcard $(CAN_SRC))
+CAN_OBJ := $(CAN_SRC_EXP:.c=.o)
 
 .PHONY: clean all size
 
@@ -58,18 +62,24 @@ OBJS := $(SRC_EXP:.c=.o)
 
 all: pot switch
 
-pot: pot_main.o $(OBJS) $(ASM_OBJ)
-	$(CC)  $(CFLAGS) $^ -o $(PROJ_NAME)-switch.elf
-	$(OBJCOPY) -O binary $(PROJ_NAME)-switch.elf $(PROJ_NAME)-switch.bin
-
-switch: switch_main.o $(OBJS) $(ASM_OBJ)
-	$(CC) $(CFLAGS) $^ -o $(PROJ_NAME)-pot.elf
+pot: CanNode
+	$(CC) -static $(CFLAGS) $(INCLUDE) pot_main.c -L$(LIB_DIR) -lCanNode -o $(PROJ_NAME)-pot.elf
 	$(OBJCOPY) -O binary $(PROJ_NAME)-pot.elf $(PROJ_NAME)-pot.bin
 
-clean:
-	rm -f *.o $(OBJS) $(ASM_OBJ) $(PROJ_NAME)*.elf $(PROJ_NAME)*.bin
+switch: CanNode
+	$(CC) -static $(CFLAGS) $(INCLUDE) switch_main.c -L$(LIB_DIR) -lCanNode -o $(PROJ_NAME)-switch.elf
+	$(OBJCOPY) -O binary $(PROJ_NAME)-switch.elf $(PROJ_NAME)-switch.bin
 
-size: all
+CanNode: $(CAN_OBJ) $(STM_OBJ)
+	$(AR) rcs $(LIB_DIR)/libCanNode.a $(STM_OBJ) $(CAN_OBJ)
+
+StmCore: $(STM_OBJ)
+	$(AR) rcs $(LIB_DIR)/libStmCore.a $^
+
+clean:
+	rm -f *.o $(CAN_OBJ) $(STM_OBJ) $(LIB_DIR)/* $(PROJ_NAME)*.elf $(PROJ_NAME)*.bin
+
+size: 
 	size $(PROJ_NAME)*.elf
 
 # Flash the STM32F4
