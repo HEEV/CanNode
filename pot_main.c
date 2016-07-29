@@ -42,7 +42,7 @@ int main(void) {
 
 	// Initialize all configured peripherals
 	MX_GPIO_Init();
-	MX_ADC_Init();
+//	MX_ADC_Init();
 
 	//select IO1 for ADC conversion
 	ADC1->CHSELR = IO3_ADC;
@@ -50,10 +50,10 @@ int main(void) {
 	//setup basic can frame
 	node = CanNode_init(ANALOG, ANALOG, true);
 	CanNode_addFilter(node, SWITCH, switchHandle);
-	CanNode_setName(node, "Potentiometer", sizeof("Potentiometer"));
-	const char info[] = "Outputs a 0-4096 value representing the position \
+//	CanNode_setName(node, "Potentiometer", sizeof("Potentiometer"));
+//	const char info[] = "Outputs a 0-4096 value representing the position \
 of a potentiometer every 5ms";
-	CanNode_setInfo(node, info, sizeof(info));
+//	CanNode_setInfo(node, info, sizeof(info));
 
 	while (1) {
 		CanNode_checkForMessages();

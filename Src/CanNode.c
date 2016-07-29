@@ -54,7 +54,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 	//if this is the first run clear list of nodes
 	if(!has_run){
 		can_init();
-		can_set_bitrate(CAN_BITRATE_500K);
+		//can_set_bitrate(CAN_BITRATE_500K);
 		can_enable();
 		newMessage=false;
 		has_run = true;
@@ -66,6 +66,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 		if(nodes[i].id == id && nodes[i].sensorType == type){
 			//its a match!
 			
+			/*
 			//add filters to hardware
 			for(uint8_t j=0; j<NUM_FILTERS; ++j){
 				if(nodes[i].filters[j] != UNUSED_FILTER && 
@@ -73,6 +74,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 					can_add_filter_id(nodes[i].filters[j]);
 				}
 			}
+			*/
 
 			//fill a spot in used nodes
 			usedNodes |= 1<<i;
@@ -80,6 +82,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 		}
 	}
 	if(!force) {
+		/*
 		for(uint8_t i=0; i<MAX_NODES; ++i){
 			//check if the space has been used and was not given to another
 			//caller
@@ -98,6 +101,8 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 				return &nodes[i];
 			}
 		}
+		*/
+		return NULL;
 	}
 
 	//set node to NULL as a way of keeping track if the node has been saved.
@@ -190,10 +195,12 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 			//save a pointer to the handler function
 			flashWrite_32((uint32_t) &node->handle[i], (uint32_t) handle);
 
+			/*
 			//if not a reseved address, add to hardware filtering
 			if(node->id > 52){
 				can_add_filter_id(node->id);
 			}
+			*/
 			
 			return true; //Sucess! Filter has been added
 		}

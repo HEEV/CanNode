@@ -1,4 +1,4 @@
-/* can.c -- shamelessly stolen from the CANtact development page
+/* can.c -- shamelessly stolen from the CANtact development pageL_CAN_ConfigFilter(&hcan, &filter);
  * implementations of can functions defined in can.h
  */
 #include <stm32f0xx_hal.h>
@@ -6,10 +6,22 @@
 #include "../Inc/can.h"
 
 CAN_HandleTypeDef hcan;
+CAN_FilterConfTypeDef filter;
 static uint32_t prescaler;
 static CanState bus_state;
 
 void can_init(void) {
+	filter.FilterIdHigh = 0;
+	filter.FilterIdLow = 0;
+	filter.FilterMaskIdHigh = 0;
+	filter.FilterMaskIdLow = 0;
+	filter.FilterMode = CAN_FILTERMODE_IDMASK;
+	filter.FilterScale = CAN_FILTERSCALE_32BIT;
+	filter.FilterNumber = 0;
+	filter.FilterFIFOAssignment = CAN_FIFO0;
+	filter.BankNumber = 0;
+	filter.FilterActivation = ENABLE;
+
 	// default to 125 kbit/s
 	prescaler = 48;
 	hcan.Instance = CAN;
@@ -31,6 +43,7 @@ void can_enable(void) {
 		hcan.Init.TXFP = DISABLE;
 		hcan.pTxMsg = NULL;
 		HAL_CAN_Init(&hcan);
+		HAL_CAN_ConfigFilter(&hcan, &filter);
 		bus_state = BUS_OK;
 	}
 }

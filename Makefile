@@ -32,7 +32,7 @@ OBJCOPY=arm-none-eabi-objcopy
 
 ODIR=obj
 
-CFLAGS += -Os -Wall -g
+CFLAGS += -O0 -Wall -g
 CFLAGS += --std=gnu11 --specs=nosys.specs -mthumb -mcpu=cortex-m0
 CFLAGS += -fdata-sections -ffunction-sections -TSTM32F042F6_FLASH.ld -Wl,--gc-sections
 
@@ -86,8 +86,11 @@ size:
 flash: all
 	dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
 
-stflash: all
-	st-flash write $(PROJ_NAME).bin 0x08000000
+potflash: pot
+	st-flash write $(PROJ_NAME)-pot.bin 0x08000000
+
+switchflash: switch
+	st-flash write $(PROJ_NAME)-switch.bin 0x08000000
 
 docs: 
 	doxygen Doxyfile
