@@ -62,12 +62,12 @@ CAN_OBJ := $(CAN_SRC_EXP:.c=.o)
 
 all: pot switch
 
-pot: CanNode
-	$(CC) -static $(CFLAGS) $(INCLUDE) pot_main.c -L$(LIB_DIR) -lCanNode -o $(PROJ_NAME)-pot.elf
+pot: $(CAN_OBJ) $(STM_OBJ) 
+	$(CC) $(CFLAGS) $(INCLUDE) pot_main.c $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME)-pot.elf
 	$(OBJCOPY) -O binary $(PROJ_NAME)-pot.elf $(PROJ_NAME)-pot.bin
 
-switch: CanNode
-	$(CC) -static $(CFLAGS) $(INCLUDE) switch_main.c -L$(LIB_DIR) -lCanNode -o $(PROJ_NAME)-switch.elf
+switch: $(CAN_OBJ) $(STM_OBJ)
+	$(CC) $(CFLAGS) $(INCLUDE) switch_main.c $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME)-switch.elf
 	$(OBJCOPY) -O binary $(PROJ_NAME)-switch.elf $(PROJ_NAME)-switch.bin
 
 CanNode: $(CAN_OBJ) $(STM_OBJ)

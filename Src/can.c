@@ -11,17 +11,6 @@ static uint32_t prescaler;
 static CanState bus_state;
 
 void can_init(void) {
-	filter.FilterIdHigh = 0;
-	filter.FilterIdLow = 0;
-	filter.FilterMaskIdHigh = 0;
-	filter.FilterMaskIdLow = 0;
-	filter.FilterMode = CAN_FILTERMODE_IDMASK;
-	filter.FilterScale = CAN_FILTERSCALE_32BIT;
-	filter.FilterNumber = 0;
-	filter.FilterFIFOAssignment = CAN_FIFO0;
-	filter.BankNumber = 0;
-	filter.FilterActivation = ENABLE;
-
 	// default to 125 kbit/s
 	prescaler = 48;
 	hcan.Instance = CAN;
@@ -43,7 +32,6 @@ void can_enable(void) {
 		hcan.Init.TXFP = DISABLE;
 		hcan.pTxMsg = NULL;
 		HAL_CAN_Init(&hcan);
-		HAL_CAN_ConfigFilter(&hcan, &filter);
 		bus_state = BUS_OK;
 	}
 }
@@ -100,20 +88,27 @@ uint16_t can_add_filter_id(uint16_t id) {
 			if(CAN->FM1R & (1<<i)){
 				//id list
 				//set FLTR to point at the first filter register
-				uint16_t* FLTR = (uint16_t*) &CAN->sFilterRegister[i].FR1;
-				for(uint8_t j=0; j<4; j++, fltr_num++, FLTR++){
-					if((*FLTR & (0x7FF<<5)) == (id<<5)){ //same as an old filter
+				uint32_t* FLTR = (uint32_t*) &CAN->sFilterRegister[i].FR1;
+				for(uint8_t j=0; j<4; j++, fltr_num++){
+					//if j is odd add 16 to the bit shift
+					//This is because the registers each hold 2 filter ids
+					uint8_t shift = 16*(j&1);
+					//if the new boss is the same as the old boss
+					if( (*FLTR & (0x7FF<<(5+shift)) )== (id<<(5+shift)) ) {
 						//do nothing
 						return fltr_num;
 					}
-					else if((*FLTR & (0x7FF<<5)) == (0x7FF<<5)){ //unused
-						*FLTR=0;//reset filter
+					else if( (*FLTR & (0x7FF<<(5+shift)) ) == 0){ //unused
 						//add id
-						*FLTR = (id<<5);
+						*FLTR |= (id<<(5+shift));
 
 						//enable filter running
 						CAN->FMR &= ~CAN_FMR_FINIT;
 						return fltr_num;
+					}
+
+					if(j==2){
+						FLTR = (uint32_t*) &CAN->sFilterRegister[i].FR2;
 					}
 				}
 			}
@@ -128,8 +123,8 @@ uint16_t can_add_filter_id(uint16_t id) {
 			CAN->FM1R |= (1<<i); //id list
 
 			//set the first postition to the id and the rest to unused
-			CAN->sFilterRegister[i].FR1=(id<<5)    | (0x7FF<<21);
-			CAN->sFilterRegister[i].FR2=(0x7FF<<5) | (0x7FF<<21);
+			CAN->sFilterRegister[i].FR1 = (id<<5);
+			CAN->sFilterRegister[i].FR2 = 0;
 			
 			//enable filter running
 			CAN->FMR &= ~CAN_FMR_FINIT;
@@ -179,7 +174,7 @@ uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
 				//set FLTR to point at the first filter register
 				uint32_t* FLTR = (uint32_t*) &CAN->sFilterRegister[i].FR1;
 				for(uint8_t j=0; j<2; j++, fltr_num++, FLTR++){
-					if((*FLTR & (0x7FF<<5)) == (0x7FF<<5)){ //unused
+					if((*FLTR & (0x7FF<<5)) == 0){ //unused
 						*FLTR=0;//reset filter
 						//add id
 						*FLTR = (id<<5) | (mask<<21);
@@ -201,8 +196,8 @@ uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
 			CAN->FM1R &= ~(1<<i); //id mask 
 
 			//set the first postition to the id and the rest to unused
-			CAN->sFilterRegister[i].FR1=(id<<5)    | (mask <<21);
-			CAN->sFilterRegister[i].FR2=(0x7FF<<5) | (0x7FF<<21);
+			CAN->sFilterRegister[i].FR1 = (id<<5) | (mask <<21);
+			CAN->sFilterRegister[i].FR2 = 0;
 			
 			//enable filter running
 			CAN->FMR &= ~CAN_FMR_FINIT;
