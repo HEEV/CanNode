@@ -34,8 +34,7 @@ ODIR=obj
 
 CFLAGS += -Os -Wall -g
 CFLAGS += --std=gnu11 --specs=nosys.specs -mthumb -mcpu=cortex-m0
-CFLAGS += -fdata-sections -ffunction-sections -TSTM32F042F6_FLASH.ld -Wl,--gc-sections
-
+CFLAGS += -TSTM32F042F6_FLASH.ld -fdata-sections -ffunction-sections -Wl,--gc-sections
 
 # Include files from STM libraries
 INCLUDE += -I$(INC_DIR)
