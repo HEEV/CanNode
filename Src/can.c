@@ -47,17 +47,17 @@ void can_enable(void) {
 		// Wait for the hardware to initilize
 		while ((CAN->MSR & CAN_MSR_INAK) != CAN_MSR_INAK);
 		//Exit sleep mode
-		CAN->MCR &=~ CAN_MCR_SLEEP;
+		CAN->MCR &= ~CAN_MCR_SLEEP;
 		// Setup timing: BS1 = 4 time quanta (3+1), BS2 = 3 time quanta (2+1).
 		// The prescalar is set to whatever it was set to from can_set_bitrate()
-		CAN->BTR |=  2 << 20 | 3 << 16 | (prescaler-1) << 0;
-		/* Leave init mode */
-		CAN->MCR &= ~CAN_MCR_INRQ;
+		CAN->BTR =  2 << 20 | 3 << 16 | (prescaler-1);
+
+		CAN->MCR &= ~CAN_MCR_INRQ;/* Leave init mode */
 		/* Wait the init mode leaving */
-		while (CAN->MSR & CAN_MSR_INAK);
+		while ((CAN->MSR & CAN_MSR_INAK) == CAN_MSR_INAK);
 
 		/* Set FIFO0 message pending IT enable */
-		CAN->IER |= CAN_IER_FMPIE0;
+		//CAN->IER |= CAN_IER_FMPIE0;
 
 		bus_state = BUS_OK;
 	}

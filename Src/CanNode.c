@@ -55,7 +55,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 	//if this is the first run clear list of nodes
 	if(!has_run){
 		can_init();
-		can_set_bitrate(CAN_BITRATE_500K);
+		can_set_bitrate(CAN_BITRATE_125K);
 		can_enable();
 		newMessage=false;
 		has_run = true;
