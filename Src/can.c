@@ -12,15 +12,36 @@ static CanState bus_state;
 static uint8_t num_msg;
 
 void can_init(void) {
-	// default to 125 kbit/s
+	// default to kbit/s
 	can_set_bitrate(CAN_BITRATE_125K);
 	hcan = CAN; //this is for convinience debugging
 	num_msg = 0;
 	bus_state = BUS_OFF;
 }
 
+static inline void can_io_init() {
+	//enable gpioa clock
+	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
+
+	/* CAN GPIO Configuration    
+	 * PA11     ------> CAN_RX
+	 * PA12     ------> CAN_TX 
+	 */
+	//altranate function pins
+	GPIOA->MODER |= GPIO_MODER_MODER12_1 | GPIO_MODER_MODER11_1;
+	//high speed pins
+	GPIOA->OSPEEDR |= GPIO_OSPEEDR_OSPEEDR12 | GPIO_OSPEEDR_OSPEEDR11; 
+	//AF4 (CAN)	
+	GPIOA->AFR[1] |= 4 << 16 | 4 << 12;
+}
+
 void can_enable(void) {
 	if (bus_state == BUS_OFF) {
+
+		//enable CAN clock
+		RCC->APB1ENR |= RCC_APB1ENR_CANEN;
+		can_io_init();
+
 		//Enter CAN init mode to write the configuration
 		CAN->MCR |= CAN_MCR_INRQ;
 		// Wait for the hardware to initilize
@@ -31,9 +52,9 @@ void can_enable(void) {
 		// The prescalar is set to whatever it was set to from can_set_bitrate()
 		CAN->BTR |=  2 << 20 | 3 << 16 | (prescaler-1) << 0;
 		/* Leave init mode */
-		CAN->MCR &=~ CAN_MCR_INRQ;
+		CAN->MCR &= ~CAN_MCR_INRQ;
 		/* Wait the init mode leaving */
-		while ((CAN->MSR & CAN_MSR_INAK) == CAN_MSR_INAK);
+		while (CAN->MSR & CAN_MSR_INAK);
 
 		/* Set FIFO0 message pending IT enable */
 		CAN->IER |= CAN_IER_FMPIE0;
@@ -295,13 +316,8 @@ CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
 }
 
 bool is_can_msg_pending(uint8_t fifo) {
-	/*
-	if (bus_state == BUS_OFF) {
-		return 0;
-	}
-	return (__HAL_CAN_MSG_PENDING(&hcan, fifo) > 0);
-	*/
-	return (bool) num_msg;
+	return (CAN->RF0R & CAN_RF0R_FMP0);
+	//return (bool) num_msg;
 }
 
 void CEC_CAN_IRQHandler(){
