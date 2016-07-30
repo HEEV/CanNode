@@ -1,37 +1,43 @@
 /* can.c -- shamelessly stolen from the CANtact development pageL_CAN_ConfigFilter(&hcan, &filter);
  * implementations of can functions defined in can.h
+ * Modified extensively by Samuel Ellicott to use hardware registers instead
+ * of HAL library.
  */
-#include <stm32f0xx_hal.h>
 #include "mxconstants.h"
 #include "../Inc/can.h"
 
-CAN_HandleTypeDef hcan;
-CAN_FilterConfTypeDef filter;
+static CAN_TypeDef *hcan;
 static uint32_t prescaler;
 static CanState bus_state;
+static uint8_t num_msg;
 
 void can_init(void) {
 	// default to 125 kbit/s
-	prescaler = 48;
-	hcan.Instance = CAN;
+	can_set_bitrate(CAN_BITRATE_125K);
+	hcan = CAN; //this is for convinience debugging
+	num_msg = 0;
 	bus_state = BUS_OFF;
 }
 
 void can_enable(void) {
 	if (bus_state == BUS_OFF) {
-		hcan.Init.Prescaler = prescaler;
-		hcan.Init.Mode = CAN_MODE_NORMAL;
-		hcan.Init.SJW = CAN_SJW_1TQ;
-		hcan.Init.BS1 = CAN_BS1_4TQ;
-		hcan.Init.BS2 = CAN_BS2_3TQ;
-		hcan.Init.TTCM = DISABLE;
-		hcan.Init.ABOM = DISABLE;
-		hcan.Init.AWUM = DISABLE;
-		hcan.Init.NART = DISABLE;
-		hcan.Init.RFLM = DISABLE;
-		hcan.Init.TXFP = DISABLE;
-		hcan.pTxMsg = NULL;
-		HAL_CAN_Init(&hcan);
+		//Enter CAN init mode to write the configuration
+		CAN->MCR |= CAN_MCR_INRQ;
+		// Wait for the hardware to initilize
+		while ((CAN->MSR & CAN_MSR_INAK) != CAN_MSR_INAK);
+		//Exit sleep mode
+		CAN->MCR &=~ CAN_MCR_SLEEP;
+		// Setup timing: BS1 = 4 time quanta (3+1), BS2 = 3 time quanta (2+1).
+		// The prescalar is set to whatever it was set to from can_set_bitrate()
+		CAN->BTR |=  2 << 20 | 3 << 16 | (prescaler-1) << 0;
+		/* Leave init mode */
+		CAN->MCR &=~ CAN_MCR_INRQ;
+		/* Wait the init mode leaving */
+		while ((CAN->MSR & CAN_MSR_INAK) == CAN_MSR_INAK);
+
+		/* Set FIFO0 message pending IT enable */
+		CAN->IER |= CAN_IER_FMPIE0;
+
 		bus_state = BUS_OK;
 	}
 }
@@ -283,13 +289,22 @@ CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
 
 	//clear fifo
 	CAN->RF0R |= CAN_RF0R_RFOM0;
+	--num_msg;
 
 	return BUS_OK;
 }
 
-uint8_t is_can_msg_pending(uint8_t fifo) {
+bool is_can_msg_pending(uint8_t fifo) {
+	/*
 	if (bus_state == BUS_OFF) {
 		return 0;
 	}
 	return (__HAL_CAN_MSG_PENDING(&hcan, fifo) > 0);
+	*/
+	return (bool) num_msg;
+}
+
+void CEC_CAN_IRQHandler(){
+	//hi there
+	if(++num_msg > 3) num_msg = 3;
 }

@@ -5,6 +5,7 @@
  * \author Samuel Ellicott
  * \date 6-20-16
  */
+#include <stm32f0xx_hal.h>
 #include "../Inc/CanNode.h"
 #define UNUSED_FILTER 0xFFFF
 
