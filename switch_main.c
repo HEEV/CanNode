@@ -53,7 +53,7 @@ int main(void) {
 	ADC1->CHSELR = IO3_ADC;
 	
 	node = CanNode_init(SWITCH, SWITCH, true);
-	CanNode_addFilter(node, ANALOG, nodeHandler);
+	CanNode_addFilter(node, can_add_filter_mask(1200, 0xff8), nodeHandler);
 	CanNode_addFilter(node, UNCONFIG, getFunky);
 
 	while (1) {
@@ -76,9 +76,9 @@ int main(void) {
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
 
-			char name[30];
-			CanNode_getName(ANALOG, name, 30, 50);
-			CanNode_getInfo(ANALOG, name, 30, 50);
+			//char name[30];
+			//CanNode_getName(ANALOG, name, 30, 50);
+			//CanNode_getInfo(ANALOG, name, 30, 50);
 		}
 
 		if(timeRemoved % 5 == 0){
