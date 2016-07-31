@@ -83,9 +83,11 @@ uint16_t can_add_filter_id(uint16_t id) {
 
 	//mostly setup filter
 	filter.FilterIdLow = 0;
+	filter.FilterIdHigh = 0;
 	filter.FilterMaskIdLow = 0;
+	filter.FilterMaskIdHigh = 0;
 	filter.FilterMode = CAN_FILTERMODE_IDLIST;
-	filter.FilterScale = CAN_FILTERSCALE_32BIT;
+	filter.FilterScale = CAN_FILTERSCALE_16BIT;
 	filter.FilterFIFOAssignment = CAN_FIFO0;
 	filter.BankNumber = 0;
 	filter.FilterActivation = ENABLE;
@@ -98,24 +100,51 @@ uint16_t can_add_filter_id(uint16_t id) {
 			if(CAN->FM1R & (1<<bank_num)){
 				//id list
 
-				filter.FilterIdHigh = CAN->sFilterRegister[bank_num].FR1 >> 16;
-				filter.FilterMaskIdHigh = (id << 5);
 				filter.FilterNumber = bank_num;
+				//if we are here then the first slot has already been filled
+				filter.FilterIdLow = CAN->sFilterRegister[bank_num].FR1;
+				++fltr_num;
 
-				HAL_CAN_ConfigFilter(&hcan, &filter);
+				//check if second slot has been filled
+				if(CAN->sFilterRegister[bank_num].FR1>>16){
+					filter.FilterIdHigh = CAN->sFilterRegister[bank_num].FR1>>16;
+					++fltr_num;
+				}
+				else {
+					filter.FilterIdHigh = (id << 5);
+					HAL_CAN_ConfigFilter(&hcan, &filter);
+					return fltr_num;
+				}
 
-				return fltr_num+1;
+				if(CAN->sFilterRegister[bank_num].FR2){
+					filter.FilterMaskIdLow = CAN->sFilterRegister[bank_num].FR2;
+					++fltr_num;
+				}
+				else{
+					filter.FilterMaskIdLow = (id << 5);
+					HAL_CAN_ConfigFilter(&hcan, &filter);
+					return fltr_num;
+				}
+
+				if((CAN->sFilterRegister[bank_num].FR2>>16)==0){
+					//last slot empty
+					filter.FilterMaskIdHigh = (id << 5);
+					HAL_CAN_ConfigFilter(&hcan, &filter);
+					return fltr_num;
+				}
+				//no empty slots incriment number, should be 4 greater than when
+				//started
+				++fltr_num;
 
 			}
 			else {
 				//add the number of filters in an id-mask to the filter number
-				fltr_num++;
+				fltr_num+=2;
 			}
 		}
 		else {
 
-			filter.FilterIdHigh = (id << 5);
-			filter.FilterMaskIdHigh = 0;
+			filter.FilterIdLow = (id << 5);
 			filter.FilterNumber = bank_num;
 
 			HAL_CAN_ConfigFilter(&hcan, &filter);
@@ -155,9 +184,11 @@ uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
 
 	//mostly setup filter
 	filter.FilterIdLow = 0;
+	filter.FilterIdHigh = 0;
 	filter.FilterMaskIdLow = 0;
+	filter.FilterMaskIdHigh = 0;
 	filter.FilterMode = CAN_FILTERMODE_IDMASK;
-	filter.FilterScale = CAN_FILTERSCALE_32BIT;
+	filter.FilterScale = CAN_FILTERSCALE_16BIT;
 	filter.FilterFIFOAssignment = CAN_FIFO0;
 	filter.BankNumber = 0;
 	filter.FilterActivation = ENABLE;
@@ -169,17 +200,31 @@ uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
 			//check if bank is using a mask or a id list
 			if((CAN->FM1R & (1<<bank_num)) == 0){
 				//id mask 
-				fltr_num++;
+			
+				//if we are here then the first slot has been taken. fill it
+				//from the registers
+				filter.FilterIdLow = CAN->sFilterRegister[bank_num].FR1;
+				filter.FilterIdHigh = (CAN->sFilterRegister[bank_num].FR1>>16);
+
+				//incriment filter index
+				++fltr_num;
+
+				//fill the new slot
+				filter.FilterMaskIdLow = (id << 5);
+				filter.FilterMaskIdHigh = (mask << 5);
+
+				//configure it
+				HAL_CAN_ConfigFilter(&hcan, &filter);
 			}
 			else {
 				//add the number of filters in an id-list to the filter number
-				fltr_num +=2;
+				fltr_num += 4;
 			}
 		}
 		else {
 
-			filter.FilterIdHigh = (id << 5);
-			filter.FilterMaskIdHigh = (mask << 5);
+			filter.FilterIdLow = (id << 5);
+			filter.FilterIdHigh = (mask << 5);
 			filter.FilterNumber = bank_num;
 
 			HAL_CAN_ConfigFilter(&hcan, &filter);
@@ -191,10 +236,7 @@ uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
 	return CAN_FILTER_ERROR;
 }
 
-CanState can_tx(CanMessage *tx_msg, uint32_t timeout) {
-	uint8_t mailbox;
-
-	//find an empty mailbox
+CanState can_tx(CanMessage *tx_msg, uint32_t timeout) { uint8_t mailbox; //find an empty mailbox
 	for(mailbox=0; mailbox<3; ++mailbox){
 		//check the status
 		if(CAN->sTxMailBox[mailbox].TIR & CAN_TI0R_TXRQ) {
