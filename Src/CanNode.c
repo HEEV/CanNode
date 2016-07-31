@@ -56,6 +56,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 		can_init();
 		//can_set_bitrate(CAN_BITRATE_500K);
 		can_enable();
+		can_add_filter_mask(0,0);
 		newMessage=false;
 		has_run = true;
 	}
@@ -195,7 +196,7 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 
 			
 			//if not a reseved address, add to hardware filtering
-			if(node->id > 52){
+			if(filter > 52){
 				can_add_filter_id(filter);
 			}
 			

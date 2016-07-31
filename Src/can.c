@@ -94,13 +94,19 @@ uint16_t can_add_filter_id(uint16_t id) {
 					//This is because the registers each hold 2 filter ids
 					uint8_t shift = 16*(j&1);
 					//if the new boss is the same as the old boss
-					if( (*FLTR & (0x7FF<<(5+shift)) )== (id<<(5+shift)) ) {
+					if( (*FLTR & (0x7FF<<(5+shift)) ) == (id<<(5+shift)) ) {
 						//do nothing
 						return fltr_num;
 					}
 					else if( (*FLTR & (0x7FF<<(5+shift)) ) == 0){ //unused
+						//disable filter while writing to it
+						CAN->FA1R &= ~(1<<i);
+
 						//add id
 						*FLTR |= (id<<(5+shift));
+
+						//enable filter bank
+						CAN->FA1R |= (1<<i);
 
 						//enable filter running
 						CAN->FMR &= ~CAN_FMR_FINIT;
@@ -119,12 +125,12 @@ uint16_t can_add_filter_id(uint16_t id) {
 		}
 		else {
 			//register not in use, set it up.
-			CAN->FA1R |= (1<<i); //using bank
 			CAN->FM1R |= (1<<i); //id list
 
 			//set the first postition to the id and the rest to unused
 			CAN->sFilterRegister[i].FR1 = (id<<5);
 			CAN->sFilterRegister[i].FR2 = 0;
+			CAN->FA1R |= (1<<i); //using bank
 			
 			//enable filter running
 			CAN->FMR &= ~CAN_FMR_FINIT;
@@ -288,8 +294,11 @@ CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
 }
 
 uint8_t is_can_msg_pending(uint8_t fifo) {
+	/*
 	if (bus_state == BUS_OFF) {
 		return 0;
 	}
 	return (__HAL_CAN_MSG_PENDING(&hcan, fifo) > 0);
+	*/
+	return ((CAN->RF0R & CAN_RF0R_FMP0) > 0); //if there is no data
 }
