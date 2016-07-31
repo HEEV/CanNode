@@ -56,7 +56,6 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 		can_init();
 		//can_set_bitrate(CAN_BITRATE_500K);
 		can_enable();
-		can_add_filter_mask(0,0);
 		newMessage=false;
 		has_run = true;
 	}

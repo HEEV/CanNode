@@ -33,6 +33,7 @@ void can_enable(void) {
 		hcan.pTxMsg = NULL;
 		HAL_CAN_Init(&hcan);
 		bus_state = BUS_OK;
+
 	}
 }
 
@@ -75,71 +76,54 @@ void can_set_bitrate(canBitrate bitrate) {
  * if the function was unable to add a filter.
  */
 uint16_t can_add_filter_id(uint16_t id) {
-	uint8_t i, fltr_num;
+
+	CAN_FilterConfTypeDef filter;
+	uint8_t bank_num, fltr_num;
 	const int MAX_FILTER = 12;
-	//enable filter modification
-	CAN->FMR |= CAN_FMR_FINIT;
-	
+
+	//mostly setup filter
+	filter.FilterIdLow = 0;
+	filter.FilterMaskIdLow = 0;
+	filter.FilterMode = CAN_FILTERMODE_IDLIST;
+	filter.FilterScale = CAN_FILTERSCALE_32BIT;
+	filter.FilterFIFOAssignment = CAN_FIFO0;
+	filter.BankNumber = 0;
+	filter.FilterActivation = ENABLE;
+
 	//loop through filter banks to find an empty filter register
-	for(fltr_num=i=0; i<MAX_FILTER; i++){
+	for(fltr_num=bank_num=0; bank_num<MAX_FILTER; bank_num++){
 		//this is a register currently in use, check if there is any openings
-		if(CAN->FA1R & (1<<i)){ 
+		if(CAN->FA1R & (1<<bank_num)){ 
 			//check if bank is using a mask or a id list
-			if(CAN->FM1R & (1<<i)){
+			if(CAN->FM1R & (1<<bank_num)){
 				//id list
-				//set FLTR to point at the first filter register
-				uint32_t* FLTR = (uint32_t*) &CAN->sFilterRegister[i].FR1;
-				for(uint8_t j=0; j<4; j++, fltr_num++){
-					//if j is odd add 16 to the bit shift
-					//This is because the registers each hold 2 filter ids
-					uint8_t shift = 16*(j&1);
-					//if the new boss is the same as the old boss
-					if( (*FLTR & (0x7FF<<(5+shift)) ) == (id<<(5+shift)) ) {
-						//do nothing
-						return fltr_num;
-					}
-					else if( (*FLTR & (0x7FF<<(5+shift)) ) == 0){ //unused
-						//disable filter while writing to it
-						CAN->FA1R &= ~(1<<i);
 
-						//add id
-						*FLTR |= (id<<(5+shift));
+				filter.FilterIdHigh = CAN->sFilterRegister[bank_num].FR1 >> 16;
+				filter.FilterMaskIdHigh = (id << 5);
+				filter.FilterNumber = bank_num;
 
-						//enable filter bank
-						CAN->FA1R |= (1<<i);
+				HAL_CAN_ConfigFilter(&hcan, &filter);
 
-						//enable filter running
-						CAN->FMR &= ~CAN_FMR_FINIT;
-						return fltr_num;
-					}
+				return fltr_num+1;
 
-					if(j==2){
-						FLTR = (uint32_t*) &CAN->sFilterRegister[i].FR2;
-					}
-				}
 			}
 			else {
 				//add the number of filters in an id-mask to the filter number
-				fltr_num+=2;
+				fltr_num++;
 			}
 		}
 		else {
-			//register not in use, set it up.
-			CAN->FM1R |= (1<<i); //id list
 
-			//set the first postition to the id and the rest to unused
-			CAN->sFilterRegister[i].FR1 = (id<<5);
-			CAN->sFilterRegister[i].FR2 = 0;
-			CAN->FA1R |= (1<<i); //using bank
-			
-			//enable filter running
-			CAN->FMR &= ~CAN_FMR_FINIT;
+			filter.FilterIdHigh = (id << 5);
+			filter.FilterMaskIdHigh = 0;
+			filter.FilterNumber = bank_num;
 
+			HAL_CAN_ConfigFilter(&hcan, &filter);
 			//return the filter number
 			return fltr_num;
 		}
 	}
-	
+
 	return CAN_FILTER_ERROR;
 }
 
@@ -165,49 +149,40 @@ uint16_t can_add_filter_id(uint16_t id) {
  * if the function was unable to add a filter.
  */
 uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
-	uint8_t i, fltr_num;
+	CAN_FilterConfTypeDef filter;
+	uint8_t bank_num, fltr_num;
 	const int MAX_FILTER = 12;
-	//enable filter modification
-	CAN->FMR |= CAN_FMR_FINIT;
-	
-	//loop through filter banks to find an empty filter register
-	for(fltr_num=i=0; i<MAX_FILTER; i++){
-		//this is a register currently in use, check if there is any openings
-		if(CAN->FA1R & (1<<i)){ 
-			//check if bank is using a mask or a id list
-			if((CAN->FM1R & (1<<i)) == 0){
-				//mask
-				//set FLTR to point at the first filter register
-				uint32_t* FLTR = (uint32_t*) &CAN->sFilterRegister[i].FR1;
-				for(uint8_t j=0; j<2; j++, fltr_num++, FLTR++){
-					if((*FLTR & (0x7FF<<5)) == 0){ //unused
-						*FLTR=0;//reset filter
-						//add id
-						*FLTR = (id<<5) | (mask<<21);
 
-						//enable filter running
-						CAN->FMR &= ~CAN_FMR_FINIT;
-						return fltr_num;
-					}
-				}
+	//mostly setup filter
+	filter.FilterIdLow = 0;
+	filter.FilterMaskIdLow = 0;
+	filter.FilterMode = CAN_FILTERMODE_IDMASK;
+	filter.FilterScale = CAN_FILTERSCALE_32BIT;
+	filter.FilterFIFOAssignment = CAN_FIFO0;
+	filter.BankNumber = 0;
+	filter.FilterActivation = ENABLE;
+
+	//loop through filter banks to find an empty filter register
+	for(fltr_num=bank_num=0; bank_num<MAX_FILTER; bank_num++){
+		//this is a register currently in use, check if there is any openings
+		if(CAN->FA1R & (1<<bank_num)){ 
+			//check if bank is using a mask or a id list
+			if((CAN->FM1R & (1<<bank_num)) == 0){
+				//id mask 
+				fltr_num++;
 			}
 			else {
 				//add the number of filters in an id-list to the filter number
-				fltr_num+=4;
+				fltr_num +=2;
 			}
 		}
 		else {
-			//register not in use, set it up.
-			CAN->FA1R |= (1<<i); //using bank
-			CAN->FM1R &= ~(1<<i); //id mask 
 
-			//set the first postition to the id and the rest to unused
-			CAN->sFilterRegister[i].FR1 = (id<<5) | (mask <<21);
-			CAN->sFilterRegister[i].FR2 = 0;
-			
-			//enable filter running
-			CAN->FMR &= ~CAN_FMR_FINIT;
+			filter.FilterIdHigh = (id << 5);
+			filter.FilterMaskIdHigh = (mask << 5);
+			filter.FilterNumber = bank_num;
 
+			HAL_CAN_ConfigFilter(&hcan, &filter);
 			//return the filter number
 			return fltr_num;
 		}

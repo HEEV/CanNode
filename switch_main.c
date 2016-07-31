@@ -53,7 +53,7 @@ int main(void) {
 	ADC1->CHSELR = IO3_ADC;
 	
 	node = CanNode_init(SWITCH, SWITCH, true);
-	CanNode_addFilter(node, can_add_filter_mask(0, 0), nodeHandler);
+	CanNode_addFilter(node, can_add_filter_mask(1200, 0xff8), nodeHandler);
 	CanNode_addFilter(node, UNCONFIG, getFunky);
 
 	while (1) {
