@@ -130,8 +130,8 @@ typedef enum {
 	CAN_SET_ID,	        ///< Sent by master to change the id of the node
 	CAN_ID_SET_ERROR,   ///< Error sent by node if the new id is not availible
 	CAN_CONFIG_ERROR,   ///< General configuration error
-	CAN_GET_NAME,       ///< Ask a node for its name
-	CAN_GET_INFO,       ///< Ask a node for its info
+	CAN_GET_NAME,       ///< Ask a node for its name (use CanNode_getName())
+	CAN_GET_INFO,       ///< Ask a node for its info (use CanNode_getInfo())
 	CAN_NAME_INFO       ///< Message is part of a name/info message
 } CanNodeMsgType;
 

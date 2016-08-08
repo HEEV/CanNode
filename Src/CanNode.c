@@ -55,7 +55,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 	//if this is the first run clear list of nodes
 	if(!has_run){
 		can_init();
-		can_set_bitrate(CAN_BITRATE_1000K);
+		can_set_bitrate(CAN_BITRATE_500K);
 		can_enable();
 		newMessage=false;
 		has_run = true;
@@ -827,7 +827,7 @@ void CanNode_checkForMessages() {
 	//TODO stm32 uses an interrupt to put the newest message in a struct
 	
 	//if there are no new messages don't do anything
-	if(!is_can_msg_pending(CAN_FIFO0)){
+	if(!is_can_msg_pending()){
 		return;
 	}
 

@@ -35,8 +35,8 @@ CanNode* node;
 uint16_t canData;
 
 int main(void) {
-	int tick;
-	int timeRemoved = 0;
+	uint32_t tick;
+	uint32_t start_time = HAL_GetTick();
 	volatile uint8_t switchState = 0;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
@@ -71,8 +71,8 @@ int main(void) {
 			LED1_GPIO_Port->ODR &= ~LED1_Pin;
 			switchState = 0;
 		}
-		if(tick - timeRemoved <= 0){ //toggle lights
-			timeRemoved=0;
+		if(tick + start_time <= HAL_GetTick()){ //toggle lights
+			start_time = HAL_GetTick();
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
 
@@ -81,11 +81,9 @@ int main(void) {
 			//CanNode_getInfo(ANALOG, name, 30, 50);
 		}
 
-		if(timeRemoved % 5 == 0){
+		if(HAL_GetTick() % 5 == 0){
 			CanNode_sendData_uint8(node, switchState);
 		}
-		timeRemoved++; 
-		HAL_Delay(1);
 	}
 }
 
@@ -167,17 +165,8 @@ void MX_GPIO_Init(void) {
     GPIOA->MODER |= GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0; //set to output modes
     //all other settings are okay
 
-#ifndef RECIEVE
-    //setup PA6 (IO1), PA7 (IO2), and PB1(IO3) as analog inputs
-    GPIOA->MODER |= GPIO_MODER_MODER6_0 | GPIO_MODER_MODER6_1 //PA6
-                 |  GPIO_MODER_MODER7_0 | GPIO_MODER_MODER6_1;//PA7
-
-    GPIOB->MODER |= GPIO_MODER_MODER1_0 | GPIO_MODER_MODER1_1;//PB1
-#else
     //GPIOA->MODER |= //GPIO_MODER_MODER6_0 | GPIO_MODER_MODER6_1 //PA6 leave as input
     //               GPIO_MODER_MODER7_0 | GPIO_MODER_MODER6_1;//PA7
 
-    GPIOB->MODER |= GPIO_MODER_MODER1_0 | GPIO_MODER_MODER1_1;//PB1
-#endif
 }
 

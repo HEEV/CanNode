@@ -6,7 +6,7 @@
 #include "mxconstants.h"
 #include "../Inc/can.h"
 
-static CAN_TypeDef *hcan;
+static CAN_HandleTypeDef hcan;
 static uint32_t prescaler;
 static CanState bus_state;
 static uint8_t num_msg;
@@ -14,7 +14,7 @@ static uint8_t num_msg;
 void can_init(void) {
 	// default to kbit/s
 	can_set_bitrate(CAN_BITRATE_125K);
-	hcan = CAN; //this is for convinience debugging
+	hcan.Instance = CAN; //this is for convinience debugging
 	num_msg = 0;
 	bus_state = BUS_OFF;
 }
@@ -338,6 +338,6 @@ CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
 	return BUS_OK;
 }
 
-uint8_t is_can_msg_pending(uint8_t fifo) {
+bool is_can_msg_pending() {
 	return ((CAN->RF0R & CAN_RF0R_FMP0) > 0); //if there is no data
 }

@@ -30,8 +30,8 @@ void switchHandle(CanMessage* data);
 CanNode* node;
 
 int main(void) {
-	int tick;
-	int timeRemoved = 0;
+	uint32_t start_time = HAL_GetTick();
+	uint32_t tick = 0;
 	uint16_t adcVal;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
@@ -61,25 +61,21 @@ of a potentiometer every 5ms";
 		ADC1->CR |= ADC_CR_ADSTART;
 
 		//wait for conversion to finish
-		while(ADC1->CR & ADC_CR_ADSTART) {
-			//HAL_Delay(1);
-		}
+		while(ADC1->CR & ADC_CR_ADSTART);
+
 		adcVal = ADC1->DR;
 		tick = getDelay(adcVal);
 
-		if(tick - timeRemoved <= 0){ //toggle lights
-			timeRemoved=0;
+		if(start_time + tick <= HAL_GetTick()){ //toggle lights
 
+			start_time = HAL_GetTick();
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
 		}
 
-		if(timeRemoved % 5 == 0){
+		if(HAL_GetTick() % 5 == 0){
 			CanNode_sendData_uint16(node, adcVal);
 		}
-		timeRemoved++; 
-
-		HAL_Delay(1);
-
+		
 	}
 }
 
@@ -97,13 +93,22 @@ int getDelay(uint16_t data){
 void switchHandle(CanMessage* data){
 	uint8_t switchState;
 	static uint8_t oldState = 0;
+	static uint32_t switchTime = 0;
+	static bool testing = false;
 
 	CanNode_getData_uint8(data, &switchState);
 
-	if(switchState != oldState && switchState){
+	if(switchState != oldState && switchState && !testing){
+		switchTime = HAL_GetTick();
+		testing = true;
+	}
+
+	if(HAL_GetTick()-switchTime > 25 && switchState==oldState && testing){
 		LED1_GPIO_Port->ODR ^= LED1_Pin;
+		testing = false;
 	}
 	oldState = switchState;
+
 }
 
 /** System Clock Configuration
@@ -164,17 +169,10 @@ void MX_GPIO_Init(void) {
     GPIOA->MODER |= GPIO_MODER_MODER4_0 | GPIO_MODER_MODER5_0; //set to output modes
     //all other settings are okay
 
-#ifndef RECIEVE
     //setup PA6 (IO1), PA7 (IO2), and PB1(IO3) as analog inputs
     GPIOA->MODER |= GPIO_MODER_MODER6_0 | GPIO_MODER_MODER6_1 //PA6
                  |  GPIO_MODER_MODER7_0 | GPIO_MODER_MODER6_1;//PA7
 
     GPIOB->MODER |= GPIO_MODER_MODER1_0 | GPIO_MODER_MODER1_1;//PB1
-#else
-    //GPIOA->MODER |= //GPIO_MODER_MODER6_0 | GPIO_MODER_MODER6_1 //PA6 leave as input
-    //               GPIO_MODER_MODER7_0 | GPIO_MODER_MODER6_1;//PA7
-
-    GPIOB->MODER |= GPIO_MODER_MODER1_0 | GPIO_MODER_MODER1_1;//PB1
-#endif
 }
 

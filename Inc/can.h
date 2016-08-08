@@ -17,6 +17,7 @@
 #define CAN_FILTER_ERROR 0xFFFF
 
 #include <stm32f0xx.h>
+#include <stm32f0xx_hal.h>
 #include <stdint.h>
 #include <stdbool.h>
 #include "CanTypes.h"
@@ -40,6 +41,6 @@ CanState can_tx(CanMessage *tx_msg, uint32_t timeout);
 /// \brief Get a CanMessage from the hardware if it is availible.
 CanState can_rx(CanMessage *rx_msg, uint32_t timeout);
 /// \brief Check if a new message is avalible.
-bool is_can_msg_pending(uint8_t fifo);
+bool is_can_msg_pending();
 
 #endif // _CAN_H
