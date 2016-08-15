@@ -47,7 +47,7 @@
  *
  *     //Analog sensor node 3. The boolean value makes the library search for
  *     //old values before putting in the specified configuration
- *     node = CanNode_init(TEMPURATURE, TEMPURATURE+3, false); 
+ *     node = CanNode_init(TEMPURATURE+3, false); 
  *
  *     //set name and information strings
  *     CanNode_setName(node, NAME,(uint8_t) sizeof(NAME));
@@ -183,4 +183,8 @@
  * significant bytes appearing in lower adresses.) For example 16-bit numbers
  * have the lower 8 bits stored in CanMessage::data[1] and the upper bytes 
  * stored in CanMessage::data[2] (data[0] is used for the configuration byte).
+ *
+ * For 8-bit types (int8_t and uint8_t) a CanNodeMessage is two bytes long, for
+ * 16-bit types (int16_t and uint16_t) messages are 3 bytes long. 32-bit types
+ * are 5 bytes. 64-bit types are not supported.
  */

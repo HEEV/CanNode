@@ -23,7 +23,7 @@
 #include "flash.h"
 
 /// \brief Initilize a CanNode from given parameters.
-CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force);
+CanNode* CanNode_init(uint16_t id, bool force);
 /// \brief Add a filter and handler to a given CanNode.
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
 /// \brief Check all initilized CanNodes for messages and call callbacks.

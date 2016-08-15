@@ -23,8 +23,8 @@ static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
  *
  * -# force = false\n 
  *  *NOTE: You should use this mode for sensors*
- *		-# The function checks whether a node of the same id and type
- *		as those provided exist. If one does, it returns the address of it.
+ *		-# The function checks whether a node of the same id 
+ *		as the one provided exist. If one does, it returns the address of it.
  *		-# The function tries to find an initilized node that has not been given
  *		out to another caller. If one exists, return its address.
  *		-# Try to initilize a node with the provded parameters if there is an 
@@ -34,13 +34,12 @@ static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
  *  *NOTE: You should use this mode for things that should not be overwritten in
  *  runtime. Using this mode reverts any changes back to what is in the compiled
  *  code at reset.*
- *		-# The function checks whether a node of the same id and type
- *		as those provided exist. If one does, it returns the address of it.
+ *		-# The function checks whether a node of the same id 
+ *		as the one provided exist. If one does, it returns the address of it.
  *		-# Try to initilize a node with the provded parameters if there is an 
  *		empty space.
  *		-# If the above fails, return NULL 
  *
- * \param[in] type Gives the sensor type
  * \param[in] id CAN Address, use the CanNodeType type plus a constant.
  * \param[in] force Force the creation of a new node of the given paramaters 
  * if an old one is not found in flash memory.
@@ -48,7 +47,7 @@ static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
  * \returns the address of a \ref CanNode struct that stores the can information.
  * This information is necessary for using any of the sendData functions
  */
-CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
+CanNode* CanNode_init(uint16_t id, bool force) {
 	static bool has_run = false;
 	static uint8_t usedNodes = 0;
 
@@ -64,7 +63,7 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 	//check if a node of that type exists
 	for(uint8_t i=0; i<MAX_NODES; ++i){
 		//check for an id and type that matches the ones specified
-		if(nodes[i].id == id && nodes[i].sensorType == type){
+		if(nodes[i].id == id){
 			//its a match!
 			
 			//add filters to hardware
@@ -120,9 +119,6 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 		if((usedNodes & (1<<i)) == 0 && node == NULL){
 			//found a happy place
 			
-			//sensor type
-			flashWrite_16((uint32_t) &nodes[i].sensorType, type);
-
 			//reset filters, filters should already be reset b/c flash erase
 			//sets all values to 0xffff==UNUSED_FILTER.
 			
@@ -141,8 +137,6 @@ CanNode* CanNode_init(CanNodeType type, uint16_t id, bool force) {
 		else if(usedNodes & (1<<i)) { 
 			//set id
 			flashWrite_16((uint32_t) &nodes[i].id, nodebak[i].id);
-			//set sensor type
-			flashWrite_16((uint32_t) &nodes[i].sensorType, nodebak[i].sensorType);
 
 			//set filters and handlers
 			for(uint8_t j=0; j<NUM_FILTERS; ++j){
@@ -862,10 +856,17 @@ void CanNode_checkForMessages() {
 	newMessage = false;
 }
 
-//TODO
+//TODO Add more CanNode functionallity
 void CanNode_nodeHandler(CanNode* node, CanMessage* msg) {
 	//get the type of message
 	CanNodeMsgType type = msg->data[0] & 0x1F;
+	const int TIMEOUT = 1000;
+	static bool configMode = false;
+	static int tickStart = 0;
+
+	if(configMode && tickStart<HAL_GetTick()) {
+		configMode = false;
+	}
 
 	switch(type){
 		case CAN_GET_NAME:
@@ -873,6 +874,62 @@ void CanNode_nodeHandler(CanNode* node, CanMessage* msg) {
 			break;
 		case CAN_GET_INFO:
 			CanNode_sendInfo(node, msg->id);
+			break;
+		case CAN_CONFIG_MODE:
+			//enter configuration mode and start a 1 second exit timer
+			tickStart=HAL_GetTick()+TIMEOUT;
+			configMode=true;
+			break;
+
+		//following cases only work after configuration mode has been entered.
+		case CAN_SET_ID:
+			if(!configMode) break; //Hey! What's that clown doing?
+
+			//clear the flash data for the current node
+			//copy to ram while erasing
+			CanNode nodebak[MAX_NODES];
+			memcpy(nodebak, nodes, sizeof(CanNode)*MAX_NODES);
+			flashUnlock();
+			//erase flash
+			flashErasePage((uint32_t) &nodes[0]);
+			//copy all the nodes that are not the current node
+			for(uint8_t i=0; i<MAX_NODES; ++i) {
+				if(node != &nodes[i]) {
+					//set id
+					flashWrite_16((uint32_t) &nodes[i].id, nodebak[i].id);
+
+					for(uint8_t j=0; j<NUM_FILTERS; ++j){
+						flashWrite_16((uint32_t) &nodes[i].filters[j], nodebak[i].filters[j]);
+						//write the filter handler
+						flashWrite_32((uint32_t) &nodes[i].handle[j], 
+									  (uint32_t) nodebak[i].handle[j]);
+					}
+				}
+			}
+
+			//copy the current node
+			//get the id from the message
+			uint16_t id;
+			id  = (uint16_t)  msg->data[1];
+			id |= (uint16_t) (msg->data[2] << 8);
+			flashWrite_16((uint32_t) &node->id, id);
+			break;
+		case CAN_SET_NAME:
+			if(!configMode) break; 
+			//get the name info from the master node. It is sending this 
+			//information to us by sending it on our address, so we should listen
+			//to that address.
+			//get the name string with a 50ms timeout
+			char name[MAX_NAME_LEN];
+			CanNode_getInfo(node->id, name, MAX_NAME_LEN, 50);
+			CanNode_setName(node, name, MAX_NAME_LEN);
+			break;
+		case CAN_SET_INFO:
+			if(!configMode) break;
+			//same as above
+			char info[MAX_INFO_LEN];
+			CanNode_getInfo(node->id, info, MAX_INFO_LEN, 100);
+			CanNode_setInfo(node, info, MAX_INFO_LEN);
 			break;
 		default:
 			break;

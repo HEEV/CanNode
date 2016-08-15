@@ -128,6 +128,8 @@ typedef enum {
 	CAN_DATA_MODE,      ///< Sent by master to enter data mode (default mode)
 	CAN_CONFIG_MODE,    ///< Sent by master to enter config mode
 	CAN_SET_ID,	        ///< Sent by master to change the id of the node
+	CAN_SET_NAME,       ///< Sent by master to change the name of the node
+	CAN_SET_INFO,       ///< Sent by master to change the info string of the node
 	CAN_ID_SET_ERROR,   ///< Error sent by node if the new id is not availible
 	CAN_CONFIG_ERROR,   ///< General configuration error
 	CAN_GET_NAME,       ///< Ask a node for its name (use CanNode_getName())

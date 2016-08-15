@@ -48,7 +48,7 @@ int main(void) {
 	ADC1->CHSELR = IO3_ADC;
 	
 	//setup basic can frame
-	node = CanNode_init(ANALOG, ANALOG, true);
+	node = CanNode_init(ANALOG, true);
 	CanNode_addFilter(node, SWITCH, switchHandle);
 	CanNode_setName(node, "Potentiometer", sizeof("Potentiometer"));
 	const char info[] = "Outputs a 0-4096 value representing the position \
