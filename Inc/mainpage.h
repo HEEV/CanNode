@@ -47,7 +47,7 @@
  *
  *     //Analog sensor node 3. The boolean value makes the library search for
  *     //old values before putting in the specified configuration
- *     node = CanNode_init(TEMPURATURE+3, false); 
+ *     node = CanNode_init(ENGINE_TEMP, false); 
  *
  *     //set name and information strings
  *     CanNode_setName(node, NAME,(uint8_t) sizeof(NAME));
@@ -135,14 +135,14 @@
  * unwanted packets. See \ref CANFiltering for more information
  *
  * \subsection ConfigurationByte Configuration Byte
- * The first byte of the CAN message is the configuration byte. It allows for 
- * two way communication between a master node and the devices on the CANbus. 
- * Since the CANbus is not intended to function in this way, this feature 
- * should be used sparingly (if at all). My intended use of this feature is to 
- * allow the setup or re-setup the devices on the node. What this does is 
- * allows a computer to reconfigure one node like a temperature sensor into a 
- * pressure sensor. The first five bits are used to store the message type, the 
- * last three bits are used for the data type. 
+ * The first byte of the CAN message is the configuration byte. This allows for
+ * the recipient of the message to know what type of message and data the sender
+ * broadcast. Since the CANbus is not intended to function in this way, this 
+ * feature should be used sparingly (if at all). My intended use of this 
+ * feature is to allow the setup or re-setup the devices on the node. What this 
+ * does is allows a computer to reconfigure one node like a temperature sensor 
+ * into a pressure sensor. The first five bits are used to store the message 
+ * type, the last three bits are used for the data type. 
  *
  * |   7   |   6   |   5   |   4   |   3   |   2   |   1   |   0   |
  * |:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|:-----:|
@@ -162,20 +162,31 @@
  * It can be one of types defined in \ref CanNodeDataType.
  *
  * \subsection Addressing  CanNode Addressing
- * *NOTE: This section is tentative and subject to change*
+ * 
+ * Each CanNode reserves for itself four ids. The first of these ids (base id) 
+ * is used to broadcast data on. It can also be called by rtr and the latest 
+ * data collected from it. The second id is for getting the Name string from the
+ * node. The third id is for getting the info string. Finally the fourth id is
+ * used for configuring the node at runtime. 
  *
  * Devices are addressed using a base address for the 0th sensor of that type, 
  * then a number of subsequent addresses are used for other sensors of the same 
  * type. This is the method employed by Megasquirt.
  *
- *  ### List of Addresses ###
+ *  ### Example List of Addresses ###
  *  * 1264 - 1391: Relays
+ *		** 1264 - 1267: Starter Relay
+ *		** 1268 - 1271: Brights
+ *		** 1272 - 1275: Left Turn Signal
+ *		** 1276 - 1280: Right Turn Signal
  *  * 1392 - 1519: LEDs
  *  * 1520 - 1583: Megasqurit
  *  * 1584 - 1647: Switches
+ *		** 1584 - 1587: Engine Stop Switch
+ *		** 1588 - 1592: Engine Start Switch
  *  * 1648 - 1663: Pressure Sensors
+ *		** 1648 - 1651: Pitot Tube
  *  * 1664 - 1728: Temperature Sensors
- *  * 1984 - 2047: Unconfigured Nodes
  *
  * \subsection Data Data
  * The data format is specified from the CanNodeDataType enum and it determines
