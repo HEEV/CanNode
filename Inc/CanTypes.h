@@ -28,19 +28,55 @@
 #define FLASH_FKEY2 0xCDEF89AB
 
 /// Total length of the name/info string
-#define TOTAL_INFO_LEN 200
+#define TOTAL_INFO_LEN 190
 /// Maximum length of a name string for the CanNode_getName()
 #define MAX_NAME_LEN 30
 /// Maximum length of a info string for the CanNode_getInfo()
 #define MAX_INFO_LEN TOTAL_INFO_LEN - MAX_NAME_LEN
 
 /**
+ * \enum CanNodeType
+ * \brief Defines sensor type and base id
+ *
+ * These are the base types that Ryan Gordon and myself thought of for the 
+ * supermileage team. These constants should be modified if new sensor types are
+ * added. Also, we have only defined the base addresses for each sensor type, 
+ * Individual sensor nodes must be added separately. Each node takes up four 
+ * addresses. The description gives the format for each message from the node.
+ *
+ */
+typedef enum {
+	MEGASQUIRT  = 800,  ///< its own format
+
+	RELAY       = 850,  ///< uint8
+	
+	SWITCH      = 900,  ///< uint8
+
+	PRESSURE    = 950,  ///< uint16
+	PITOT       = 950,  ///< Pitot Tube
+
+	TEMPURATURE = 1000, ///< uint16
+	ENGINE_TEMP = 1000, ///< Engine Case Tempurature
+	COOL_TEMP   = 1004, ///< Engine Coolent Tempurature
+
+	VOLTAGE     = 1050, ///< uint16
+	SYS_V       = 1050, ///< System Voltage
+
+	CURRENT     = 1100, ///< uint16 
+	SYS_I       = 1100, ///< System Current
+
+	TACHOMETER  = 1150, ///< uint8 - revolutions per second
+	WHEEL_TACH  = 1150, ///< Drive Wheel Tachometer
+
+	LED			= 1100, ///< array of 4 uint8 RGBA
+} CanNodeType;
+ 
+/**
  * \enum canBitrate
  * \brief Defines various avalible bitrates for the CANBus
  *
  */
-typedef enum {
-	CAN_BITRATE_10K,  ///< 10k baud
+typedef enum { CAN_BITRATE_10K,  ///< 10k baud
 	CAN_BITRATE_20K,  ///< 20k baud
 	CAN_BITRATE_50K,  ///< 50k baud
 	CAN_BITRATE_100K, ///< 100k baud
@@ -66,22 +102,6 @@ typedef enum {
 	BUS_BUSY,      ///< The bus is working with someone else right now
 	BUS_OFF        ///< The bus is off - call can_init() and can_enable()
 } CanState;
-
-/**
- * \enum CanNodeType
- * \brief Defines sensor type and base id
- *
- */
-typedef enum {
-	ANALOG      = 1200, ///< Analog sensor (depricated)
-	RELAY       = 1264, ///< Relay
-	LED	        = 1392, ///< LEDs
-	MEGASQUIRT  = 1520, ///< Megasquirt EFI controller
-	SWITCH      = 1584, ///< All types of switches and potentiometers
-	PRESSURE    = 1648, ///< Pressure sensors
-	TEMPURATURE = 1664, ///< Tempurature sensors
-	UNCONFIG    = 1984  ///< Unconfigured nodes
-} CanNodeType;
 
 /**
  * \struct CanMessage
@@ -171,10 +191,13 @@ typedef struct {
 	uint16_t id;                       ///< id of the node
 	uint8_t status;                    ///< status of the node (not currently used)
 	uint16_t filters[NUM_FILTERS];     ///< array of id's to handle
+	filterHandler rtrHandle;           ///< function to handle rtr requests for
+	                                   ///< the node
 	filterHandler handle[NUM_FILTERS]; ///< array of function pointers to call
-	                                      ///< when a id in filters is found
+	                                   ///< when a id in filters is found
 	CanNodeType sensorType;            ///< Type of sensor
-	char nodeInfoBuff[TOTAL_INFO_LEN]; ///< (points to an address in flash)
+	char nodeNameBuff[MAX_NAME_LEN];
+	char nodeInfoBuff[MAX_INFO_LEN]; ///< (points to an address in flash)
 } CanNode;
 
 #endif //_CAN_TYPES_H_
