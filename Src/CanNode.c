@@ -47,7 +47,7 @@ static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
  * \returns the address of a \ref CanNode struct that stores the can information.
  * This information is necessary for using any of the sendData functions
  */
-CanNode* CanNode_init(uint16_t id, bool force) {
+CanNode* CanNode_init(CanNodeType id, bool force) {
 	static bool has_run = false;
 	static uint8_t usedNodes = 0;
 
@@ -67,7 +67,12 @@ CanNode* CanNode_init(uint16_t id, bool force) {
 			//its a match!
 			
 			//add filters to hardware
-			can_add_filter_id(id);
+			//default filters
+			can_add_filter_id(id);  //rtr filter
+			can_add_filter_id(id+1);//get name filter
+			can_add_filter_id(id+2);//get info filter
+			can_add_filter_id(id+3);//configuration filter
+			//user defined filters
 			for(uint8_t j=0; j<NUM_FILTERS; ++j){
 				if(nodes[i].filters[j] != UNUSED_FILTER && 
 				   nodes[i].filters[j] > 52 ){ //id's below 52 are reserved
@@ -88,7 +93,12 @@ CanNode* CanNode_init(uint16_t id, bool force) {
 			if(nodes[i].id != 0xFFFF && (usedNodes & (1<<i)) == 0){
 				
 				//add filters to hardware
-				can_add_filter_id(id);
+				//default filters
+				can_add_filter_id(id);  //rtr filter
+				can_add_filter_id(id+1);//get name filter
+				can_add_filter_id(id+2);//get info filter
+				can_add_filter_id(id+3);//configuration filter
+				//user defined filters
 				for(uint8_t j=0; j<NUM_FILTERS; ++j){
 					if(nodes[i].filters[j] != UNUSED_FILTER && 
 					   nodes[i].filters[j] > 52){ //id's below 52 are reserved
@@ -124,7 +134,10 @@ CanNode* CanNode_init(uint16_t id, bool force) {
 			
 			//add a filter so that the can hardware catches id's pertaining to 
 			//the base id.
-			can_add_filter_id(id);
+			can_add_filter_id(id);  //rtr filter
+			can_add_filter_id(id+1);//get name filter
+			can_add_filter_id(id+2);//get info filter
+			can_add_filter_id(id+3);//configuration filter
 
 			//set node to that id
 			flashWrite_16((uint32_t) &nodes[i].id, id);
@@ -146,9 +159,16 @@ CanNode* CanNode_init(uint16_t id, bool force) {
 						      (uint32_t) nodebak[i].handle[j]);
 			}
 
+			//set rtr handle
+			flashWrite_32((uint32_t) &nodes[i].rtrHandle,
+					      (uint32_t) nodebak[i].rtrHandle);
+
+			//set sensor type
+			flashWrite_16((uint32_t) &nodes[i].sensorType, nodebak[i].sensorType);
+
 			//copy name and info
 			CanNode_setName(&nodes[i], &nodebak[i].nodeInfoBuff[0], MAX_NAME_LEN);
-			CanNode_setInfo(&nodes[i], &nodebak[i].nodeInfoBuff[MAX_NAME_LEN], MAX_INFO_LEN);
+			CanNode_setInfo(&nodes[i], &nodebak[i].nodeNameBuff[0], MAX_INFO_LEN);
 		}
 	}
 
@@ -232,7 +252,7 @@ void CanNode_getName(uint16_t id, char* name, uint8_t buff_len, uint32_t timeout
 	//or a timeout condition is reached.
 	while(namePtr-name < buff_len && HAL_GetTick()-tickStart < timeout){
 		//wait for message or timeout
-		while(!is_can_msg_pending(CAN_FIFO0) && HAL_GetTick()-tickStart < timeout);
+		while(!is_can_msg_pending() && HAL_GetTick()-tickStart < timeout);
 		//get the next buffer
 		can_rx(&msg, 5);
 		//check if it is from our id
@@ -275,7 +295,7 @@ void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeou
 	//or a timeout condition is reached.
 	while(namePtr-info< buff_len && HAL_GetTick()-tickStart < timeout){
 		//wait for message or timeout
-		while(!is_can_msg_pending(CAN_FIFO0) && HAL_GetTick()-tickStart < timeout);
+		while(!is_can_msg_pending() && HAL_GetTick()-tickStart < timeout);
 		//get the next buffer
 		can_rx(&msg, 5);
 		//check if it is from our id
@@ -318,16 +338,16 @@ void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len) {
 
 		//archatecture is little-endian (i think)
 		uint16_t chars = name[i] | (name[i+1] << 8);
-		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], chars);
+		flashWrite_16((uint32_t) &node->nodeNameBuff[i], chars);
 	}
 	//if odd pad last byte with a null character
 	if(buff_len & 1){
 		uint16_t chars = name[i] | ('\0' << 8);
-		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], chars);
+		flashWrite_16((uint32_t) &node->nodeNameBuff[i], chars);
 	}
 	else {
 		//add null character
-		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], 0);
+		flashWrite_16((uint32_t) &node->nodeNameBuff[i], 0);
 	}
 }	
 
@@ -360,7 +380,7 @@ void CanNode_setInfo(const CanNode* node, const char* info, uint8_t buff_len) {
 	    i+=2){              //writing in 16 bit incriments, advance by 2 chars
 
 		uint16_t chars = info[i] | (info[i+1] << 8);
-		flashWrite_16((uint32_t) &node->nodeInfoBuff[i+MAX_NAME_LEN], chars);
+		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], chars);
 	}
 	//if odd pad last byte with a null character
 	if(buff_len & 1){
@@ -829,11 +849,6 @@ void CanNode_checkForMessages() {
 	//loop through nodes
 	for(uint8_t i=0; i<MAX_NODES; ++i){
 
-		//CanNode takes over if the caller asks for your id (and it isn't rtr)
-		if(tmpMsg.id == nodes[i].id && !tmpMsg.rtr){
-			CanNode_nodeHandler(&nodes[i], &tmpMsg);
-		}
-		
 		//call callbacks for the user defined filters
 		for(uint8_t j=0; j<NUM_FILTERS; ++j){ 
 			if(tmpMsg.id == nodes[i].filters[j] && 
@@ -850,13 +865,37 @@ void CanNode_checkForMessages() {
 				nodes[i].handle[j](&tmpMsg);
 			}
 		}
+
+		//CanNode takes over if the caller asks for a reserved id
+		if(tmpMsg.id == nodes[i].id && tmpMsg.rtr){
+			nodes[i].rtrHandler(tmpMsg);
+		}
+		//get name id
+		else if(tmpMsg.id == nodes[i].id+1 && 
+			   (tmpMsg.data[0] & 0x1F) == CAN_GET_NAME){
+			
+			CanNode_sendName(&nodes[i], tmpMsg.id);
+		}
+		//get info id
+		else if(tmpMsg.id == nodes[i].id+2 && 
+			   (tmpMsg.data[0] & 0x1F) == CAN_GET_INFO){
+			
+			CanNode_sendInfo(&nodes[i], tmpMsg.id);
+		}
+		//configuration id
+		else if(tmpMsg.id == nodes[i].id+3){
+			CanNode_nodeHandler(&nodes[i], &tmpMsg);
+		}
+		
 	}
 
 	//clear new message flag
 	newMessage = false;
 }
 
-//TODO Add more CanNode functionallity
+/**
+ * \brief handles configuration functionality of the CanNode
+ */
 void CanNode_nodeHandler(CanNode* node, CanMessage* msg) {
 	//get the type of message
 	CanNodeMsgType type = msg->data[0] & 0x1F;
@@ -869,12 +908,6 @@ void CanNode_nodeHandler(CanNode* node, CanMessage* msg) {
 	}
 
 	switch(type){
-		case CAN_GET_NAME:
-			CanNode_sendName(node, msg->id);
-			break;
-		case CAN_GET_INFO:
-			CanNode_sendInfo(node, msg->id);
-			break;
 		case CAN_CONFIG_MODE:
 			//enter configuration mode and start a 1 second exit timer
 			tickStart=HAL_GetTick()+TIMEOUT;
