@@ -27,6 +27,7 @@ static void MX_ADC_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 int getDelay(uint16_t data);
 void switchHandle(CanMessage* data);
+void rtrHandle(CanMessage* data);
 CanNode* node;
 
 int main(void) {
@@ -48,7 +49,7 @@ int main(void) {
 	ADC1->CHSELR = IO3_ADC;
 	
 	//setup basic can frame
-	node = CanNode_init(ANALOG, true);
+	node = CanNode_init(THROTTLE, switchHandle, true);
 	CanNode_addFilter(node, SWITCH, switchHandle);
 	CanNode_setName(node, "Potentiometer", sizeof("Potentiometer"));
 	const char info[] = "Outputs a 0-4096 value representing the position \
@@ -109,6 +110,16 @@ void switchHandle(CanMessage* data){
 	}
 	oldState = switchState;
 
+}
+
+void rtrHandle(CanMessage *data) {
+	//start ADC conversion
+	ADC1->CR |= ADC_CR_ADSTART;
+
+	//wait for conversion to finish
+	while(ADC1->CR & ADC_CR_ADSTART);
+
+	CanNode_sendData_uint16(node, ADC1->DR);
 }
 
 /** System Clock Configuration

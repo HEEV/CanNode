@@ -51,6 +51,7 @@ typedef enum {
 	RELAY       = 850,  ///< uint8
 	
 	SWITCH      = 900,  ///< uint8
+	THROTTLE    = 900,  ///< throttle position (uint16)
 
 	PRESSURE    = 950,  ///< uint16
 	PITOT       = 950,  ///< Pitot Tube

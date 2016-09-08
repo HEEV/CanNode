@@ -23,7 +23,7 @@
 #include "flash.h"
 
 /// \brief Initilize a CanNode from given parameters.
-CanNode* CanNode_init(uint16_t id, bool force);
+CanNode* CanNode_init(CanNodeType id, filterHandler rtrHandle, bool force);
 /// \brief Add a filter and handler to a given CanNode.
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
 /// \brief Check all initilized CanNodes for messages and call callbacks.
@@ -41,9 +41,9 @@ void CanNode_checkForMessages();
  */
 //@{
 /// \brief Get an name string from a CAN id.
-void CanNode_getName(uint16_t id, char* name, uint8_t buff_len, uint32_t timeout);
+void CanNode_getName(CanNodeType id, char* name, uint8_t buff_len, uint32_t timeout);
 /// \brief Get an info string from a CAN id.
-void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeout);
+void CanNode_getInfo(CanNodeType id, char* info, uint16_t buff_len, uint32_t timeout);
 
 /// \brief Set the name string for a CanNode into flash.
 void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len);

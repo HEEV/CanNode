@@ -30,6 +30,7 @@ static void MX_ADC_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 int getDelay(uint16_t data);
 void nodeHandler(CanMessage* data);
+void rtrHandle(CanMessage* data);
 void getFunky(CanMessage* data);
 CanNode* node;
 uint16_t canData;
@@ -52,9 +53,9 @@ int main(void) {
 	//select IO1 for ADC conversion
 	ADC1->CHSELR = IO3_ADC;
 	
-	node = CanNode_init(SWITCH, true);
+	node = CanNode_init(SWITCH, rtrHandle, true);
 	CanNode_addFilter(node, can_add_filter_mask(1200, 0xff8), nodeHandler);
-	CanNode_addFilter(node, UNCONFIG, getFunky);
+	CanNode_addFilter(node, LED, getFunky);
 
 	while (1) {
 		//check if there is a message
@@ -100,6 +101,19 @@ int getDelay(uint16_t data){
 
 void nodeHandler(CanMessage* data){
 	CanNode_getData_uint16(data, &canData);
+}
+
+void rtrHandle(CanMessage* data){
+	uint8_t switchState = GPIOA->IDR & GPIO_IDR_6;
+	if(!switchState){
+		LED1_GPIO_Port->ODR |= LED1_Pin;
+		switchState = 1;
+	}
+	else{
+		LED1_GPIO_Port->ODR &= ~LED1_Pin;
+		switchState = 0;
+	}
+	CanNode_sendData_uint8(node, switchState);
 }
 
 void getFunky(CanMessage* data){

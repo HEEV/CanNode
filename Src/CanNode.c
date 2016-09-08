@@ -41,13 +41,14 @@ static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
  *		-# If the above fails, return NULL 
  *
  * \param[in] id CAN Address, use the CanNodeType type plus a constant.
+ * \param[in] rtrHandle function pointer to a handler function for rtr requests.
  * \param[in] force Force the creation of a new node of the given paramaters 
  * if an old one is not found in flash memory.
  *
  * \returns the address of a \ref CanNode struct that stores the can information.
  * This information is necessary for using any of the sendData functions
  */
-CanNode* CanNode_init(CanNodeType id, bool force) {
+CanNode* CanNode_init(CanNodeType id, filterHandler rtrHandle, bool force) {
 	static bool has_run = false;
 	static uint8_t usedNodes = 0;
 
@@ -142,6 +143,9 @@ CanNode* CanNode_init(CanNodeType id, bool force) {
 			//set node to that id
 			flashWrite_16((uint32_t) &nodes[i].id, id);
 
+			//add rtr filter
+			flashWrite_32((uint32_t) &nodes[i].rtrHandle, (uint32_t) rtrHandle);
+
 			//fill a spot in used nodes
 			usedNodes |= 1<<i;
 			node = &nodes[i];
@@ -182,8 +186,7 @@ CanNode* CanNode_init(CanNodeType id, bool force) {
  *
  * Ids from 0 - 52 are reserved for the use of passing the return value of
  * can_add_filter_mask() to the function as a id. This allows for the use of 
- * id masks instead of identifier lists for filtering. It is adviseable to force
- * the reintilization of the node by passing true to the force paramater of 
+ * id masks instead of identifier lists for filtering. It is adviseable to force * the reintilization of the node by passing true to the force paramater of 
  * CanNode_init().
  *
  * \param[in,out] node pointer to a node saved in flash memory
@@ -233,19 +236,18 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
  *
  * \see CanNode_getInfo()
  */
-void CanNode_getName(uint16_t id, char* name, uint8_t buff_len, uint32_t timeout){
+void CanNode_getName(CanNodeType id, char* name, uint8_t buff_len, uint32_t timeout){
 	CanMessage msg;
 	uint32_t tickStart;
-	//send a request to the specified id
-	msg.id = id;
+	//send a request to the specified CanNode and query its get name address 
+	msg.id = id+1;
 	msg.len = 1;
-	msg.rtr = false;
+	msg.rtr = true;
 	msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
 	can_tx(&msg, 5);
 
 	//get start time
 	tickStart = HAL_GetTick();
-	//TODO check if node is even there with an rtr
 	
 	char* namePtr = name;
 	//keep collecting data until a null character is reached, buffer is full,
@@ -277,18 +279,17 @@ void CanNode_getName(uint16_t id, char* name, uint8_t buff_len, uint32_t timeout
  *
  * \see CanNode_getName()
  */
-void CanNode_getInfo(uint16_t id, char* info, uint16_t buff_len, uint32_t timeout){
+void CanNode_getInfo(CanNodeType id, char* info, uint16_t buff_len, uint32_t timeout){
 	CanMessage msg;
 	uint32_t tickStart;
 	//send a request to the specified id
-	msg.id = id;
+	msg.id = id+2;
 	msg.len = 1; msg.rtr = false;
 	msg.data[0] = CAN_GET_INFO | (CAN_INT8 << 5);
 	can_tx(&msg, 5);
 
 	//get start time
 	tickStart = HAL_GetTick();
-	//TODO check if node is even there with an rtr
 	
 	char* namePtr = info;
 	//keep collecting data until a null character is reached, buffer is full,
@@ -347,7 +348,7 @@ void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len) {
 	}
 	else {
 		//add null character
-		flashWrite_16((uint32_t) &node->nodeNameBuff[i], 0);
+		flashWrite_16((uint32_t) &node->nodeNameBuff[i], (uint16_t) '\0');
 	}
 }	
 
@@ -389,7 +390,7 @@ void CanNode_setInfo(const CanNode* node, const char* info, uint8_t buff_len) {
 	}
 	else {
 		//add null character
-		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], 0);
+		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], (uint16_t) '\0');
 	}
 }
 
@@ -849,44 +850,41 @@ void CanNode_checkForMessages() {
 	//loop through nodes
 	for(uint8_t i=0; i<MAX_NODES; ++i){
 
-		//call callbacks for the user defined filters
-		for(uint8_t j=0; j<NUM_FILTERS; ++j){ 
-			if(tmpMsg.id == nodes[i].filters[j] && 
-			   nodes[i].handle[j] != NULL){
-
-				//call handler function
-				nodes[i].handle[j](&tmpMsg);
-			}
-			//check if the filter match equals a filter id
-			else if(tmpMsg.fmi == nodes[i].filters[j] && //filter matches 
-					nodes[i].handle[j] != NULL){
-
-				//call handler function
-				nodes[i].handle[j](&tmpMsg);
-			}
-		}
-
 		//CanNode takes over if the caller asks for a reserved id
+		//rtr request for node data
 		if(tmpMsg.id == nodes[i].id && tmpMsg.rtr){
-			nodes[i].rtrHandler(tmpMsg);
+			nodes[i].rtrHandle(&tmpMsg);
 		}
-		//get name id
-		else if(tmpMsg.id == nodes[i].id+1 && 
-			   (tmpMsg.data[0] & 0x1F) == CAN_GET_NAME){
-			
+		//get name id if asked with an rtr
+		else if(tmpMsg.id == nodes[i].id+1 && tmpMsg.rtr){
 			CanNode_sendName(&nodes[i], tmpMsg.id);
 		}
 		//get info id
-		else if(tmpMsg.id == nodes[i].id+2 && 
-			   (tmpMsg.data[0] & 0x1F) == CAN_GET_INFO){
-			
+		else if(tmpMsg.id == nodes[i].id+2 && tmpMsg.rtr){
 			CanNode_sendInfo(&nodes[i], tmpMsg.id);
 		}
 		//configuration id
 		else if(tmpMsg.id == nodes[i].id+3){
 			CanNode_nodeHandler(&nodes[i], &tmpMsg);
 		}
-		
+		else {
+			//call callbacks for the user defined filters
+			for(uint8_t j=0; j<NUM_FILTERS; ++j){ 
+				if(tmpMsg.id == nodes[i].filters[j] && 
+				   nodes[i].handle[j] != NULL){
+
+					//call handler function
+					nodes[i].handle[j](&tmpMsg);
+				}
+				//check if the filter match equals a filter id
+				else if(tmpMsg.fmi == nodes[i].filters[j] && //filter matches 
+						nodes[i].handle[j] != NULL){
+
+					//call handler function
+					nodes[i].handle[j](&tmpMsg);
+				}
+			}
+		}
 	}
 
 	//clear new message flag
