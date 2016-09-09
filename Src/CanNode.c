@@ -284,7 +284,8 @@ void CanNode_getInfo(CanNodeType id, char* info, uint16_t buff_len, uint32_t tim
 	uint32_t tickStart;
 	//send a request to the specified id
 	msg.id = id+2;
-	msg.len = 1; msg.rtr = false;
+	msg.len = 1;
+   	msg.rtr = false;
 	msg.data[0] = CAN_GET_INFO | (CAN_INT8 << 5);
 	can_tx(&msg, 5);
 
