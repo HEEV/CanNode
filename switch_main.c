@@ -53,14 +53,9 @@ int main(void) {
 	//select IO1 for ADC conversion
 	ADC1->CHSELR = IO3_ADC;
 	
-<<<<<<< HEAD:wheel_main.c
 	node = CanNode_init(TACT, rtrHandle, true);
 	CanNode_addFilter(node, THROTTLE, nodeHandler);
-=======
-	node = CanNode_init(SWITCH, rtrHandle, true);
 	CanNode_addFilter(node, can_add_filter_mask(1200, 0xff8), nodeHandler);
-	CanNode_addFilter(node, LED, getFunky);
->>>>>>> parent of bb35209... Making code for a wheel tachometer sensor:switch_main.c
 
 	while (1) {
 		//check if there is a message
