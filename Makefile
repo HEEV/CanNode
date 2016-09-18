@@ -32,7 +32,7 @@ OBJCOPY=arm-none-eabi-objcopy
 
 ODIR=obj
 
-CFLAGS += -Os -Wall -g
+CFLAGS += -O0 -Wall -g
 CFLAGS += --std=gnu11 --specs=nosys.specs -mthumb -mcpu=cortex-m0
 CFLAGS += -TSTM32F042F6_FLASH.ld -fdata-sections -ffunction-sections -Wl,--gc-sections
 

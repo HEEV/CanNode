@@ -51,8 +51,8 @@ int main(void) {
 	//select IO1 for ADC conversion
 	ADC1->CHSELR = IO3_ADC;
 	
-	node = CanNode_init(SWITCH, rtrHandle, true);
-	CanNode_addFilter(node, can_add_filter_mask(1200, 0xff8), nodeHandler);
+	node = CanNode_init(TACT, rtrHandle, true);
+	CanNode_addFilter(node, THROTTLE, nodeHandler);
 
 	while (1) {
 		//check if there is a message
