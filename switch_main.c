@@ -28,8 +28,10 @@ static void MX_GPIO_Init(void);
 static void MX_ADC_Init(void);
 
 /* Private function prototypes -----------------------------------------------*/
+int getDelay(uint16_t data);
 void nodeHandler(CanMessage* data);
 void rtrHandle(CanMessage* data);
+void getFunky(CanMessage* data);
 CanNode* node;
 uint16_t canData;
 
@@ -51,13 +53,20 @@ int main(void) {
 	//select IO1 for ADC conversion
 	ADC1->CHSELR = IO3_ADC;
 	
+<<<<<<< HEAD:wheel_main.c
 	node = CanNode_init(TACT, rtrHandle, true);
 	CanNode_addFilter(node, THROTTLE, nodeHandler);
+=======
+	node = CanNode_init(SWITCH, rtrHandle, true);
+	CanNode_addFilter(node, can_add_filter_mask(1200, 0xff8), nodeHandler);
+	CanNode_addFilter(node, LED, getFunky);
+>>>>>>> parent of bb35209... Making code for a wheel tachometer sensor:switch_main.c
 
 	while (1) {
 		//check if there is a message
 		CanNode_checkForMessages();
 
+		tick = getDelay(canData);
 
 		switchState = GPIOA->IDR & GPIO_IDR_6;
 	    if(!switchState){
@@ -72,12 +81,27 @@ int main(void) {
 			start_time = HAL_GetTick();
 
 			LED2_GPIO_Port->ODR ^= LED2_Pin;
+
+			//char name[30];
+			//CanNode_getName(ANALOG, name, 30, 50);
+			//CanNode_getInfo(ANALOG, name, 30, 50);
 		}
 
 		if(HAL_GetTick() % 5 == 0){
 			CanNode_sendData_uint8(node, switchState);
 		}
 	}
+}
+
+int getDelay(uint16_t data){
+
+	const uint16_t MAX_DELAY = 300; //max delay 500ms
+	const uint8_t MIN_DELAY = 20; //min delay 10ms
+	const uint16_t MAX_ADC = 4096;
+	
+	uint32_t temp = (data) * (MAX_DELAY - MIN_DELAY);
+	
+	return temp / MAX_ADC + MIN_DELAY;
 }
 
 void nodeHandler(CanMessage* data){
@@ -95,6 +119,11 @@ void rtrHandle(CanMessage* data){
 		switchState = 0;
 	}
 	CanNode_sendData_uint8(node, switchState);
+}
+
+void getFunky(CanMessage* data){
+		int8_t msg[6] = "Punk!";
+		CanNode_sendDataArr_int8(node, msg, 5);
 }
 
 /** System Clock Configuration
