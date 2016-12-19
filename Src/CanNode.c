@@ -398,39 +398,36 @@ void CanNode_setInfo(const CanNode* node, const char* info, uint8_t buff_len) {
 
 void CanNode_sendName(const CanNode* node, uint16_t id){
 	CanMessage msg;
-	msg.id = id;
+	msg.id = id+1;
 	msg.rtr = false;
 	msg.data[0] = CAN_NAME_INFO | CAN_INT8 << 5;
 
 	//fill buffers and send them
 	uint8_t i=0;
-	while(node->nodeInfoBuff[i] != '\0' && 
-		  node->nodeInfoBuff[i] != '\377') {
+	while(node->nodeNameBuff[i] != '\0' && 
+		  node->nodeNameBuff[i] != '\377') {
 
 		//break if end of name has been reached
 		for(msg.len=1; msg.len<8 && i<MAX_NAME_LEN; ++msg.len, ++i){
 			//set data
-			msg.data[msg.len] = node->nodeInfoBuff[i];
+			msg.data[msg.len] = node->nodeNameBuff[i];
 
 			//check data
 			if(msg.data[msg.len] == '\0' || msg.data[msg.len] == 0xff){
 				break;
 			}
 		}
-		if(msg.len>8){
-			msg.len=8;
-		}
 		can_tx(&msg, 5);
 	}
 }
 void CanNode_sendInfo(const CanNode* node, uint16_t id) {
 	CanMessage msg;
-	msg.id = id;
+	msg.id = id+2;
 	msg.rtr = false;
 	msg.data[0] = CAN_NAME_INFO | CAN_INT8 << 5;
 
 	//fill buffers and send them
-	uint8_t i=MAX_NAME_LEN;
+	uint8_t i=0;
 	while(node->nodeInfoBuff[i] != '\0' && 
 		  node->nodeInfoBuff[i] != '\377') {
 
