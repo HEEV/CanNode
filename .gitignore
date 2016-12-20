@@ -1,0 +1,6 @@
+#ignore binary files
+*.elf
+*.bin
+*.o
+doc/*
+wiki/*
