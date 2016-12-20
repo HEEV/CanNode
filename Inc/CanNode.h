@@ -19,16 +19,17 @@
 #include <stdlib.h>
 #include <string.h>
 #include "CanTypes.h"
-#include "can.h"
-#include "flash.h"
+#include <can.h>
+#include <flash.h>
 
 /// \brief Initilize a CanNode from given parameters.
 CanNode* CanNode_init(CanNodeType id, filterHandler rtrHandle, bool force);
 /// \brief Add a filter and handler to a given CanNode.
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
+/// \brief save a node to a place in flash memory
+void CanNode_saveNode(CanNode* flashNode, CanNode* newNode);
 /// \brief Check all initilized CanNodes for messages and call callbacks.
 void CanNode_checkForMessages();
-
 
 /** 
  * \anchor infoFunctions
@@ -46,9 +47,9 @@ void CanNode_getName(CanNodeType id, char* name, uint8_t buff_len, uint32_t time
 void CanNode_getInfo(CanNodeType id, char* info, uint16_t buff_len, uint32_t timeout);
 
 /// \brief Set the name string for a CanNode into flash.
-void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len);
+void CanNode_setName(CanNode* node, const char* name, uint8_t buff_len);
 /// \brief Set the info string for a CanNode into flash.
-void CanNode_setInfo(const CanNode* node, const char* info, uint8_t buff_len);
+void CanNode_setInfo(CanNode* node, const char* info, uint8_t buff_len);
 
 /// \brief Send the name string over the CANBus
 void CanNode_sendName(const CanNode* node, uint16_t id);

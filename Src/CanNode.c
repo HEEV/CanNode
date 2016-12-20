@@ -6,7 +6,7 @@
  * \date 6-20-16
  */
 #include <stm32f0xx_hal.h>
-#include "../Inc/CanNode.h"
+#include <CanNode.h>
 #define UNUSED_FILTER 0xFFFF
 
 
@@ -15,6 +15,7 @@ static bool newMessage;
 static CanMessage tmpMsg;
 
 static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
+
 
 /**
  * Initilizes an empty CanNode structure to the values provided and saves it
@@ -180,6 +181,33 @@ CanNode* CanNode_init(CanNodeType id, filterHandler rtrHandle, bool force) {
 	return node;//returns null if no empty spots found
 }
 
+void CanNode_saveNode(CanNode* flashNode, CanNode* newNode){
+	//clear the flash data for the current node
+	
+	//copy to ram while erasing
+	CanNode nodebak[MAX_NODES];
+	memcpy(nodebak, nodes, sizeof(CanNode)*MAX_NODES);
+
+	//unlock the flash for writing
+	flashUnlock();
+	//erase flash
+	flashErasePage((uint32_t) &nodes[0]);
+
+	//copy all the nodes that are not the node we are changing
+	for(uint8_t i=0; i<MAX_NODES; ++i) {
+		if(flashNode != &nodes[i]) {
+			//copy the node
+			flashWriteMemBlock((uint32_t) &nodes[i], 
+					(uint8_t*) &nodes[0], sizeof(CanNode));
+		}
+	}
+	//copy over the new node
+	flashWriteMemBlock((uint32_t) flashNode, (uint8_t*) newNode, sizeof(CanNode));
+
+	//relock the flash
+	flashLock();
+}
+
 /**
  * Saves a filter id and a handler to a node in flash memory. The function also
  * accepts a function which gets called if a message from that id is avalible.
@@ -313,7 +341,6 @@ void CanNode_getInfo(CanNodeType id, char* info, uint16_t buff_len, uint32_t tim
 
 /**
  * Set the provided CanNode's name string attribute. This will be stored in flash
- * and will fail silently if it has already been set. 
  *
  * \param node CanNode to set name string of. Should be one initilized by 
  * CanNode_init(), eg. stored in flash. If passed a struct that is not in flash
@@ -327,72 +354,49 @@ void CanNode_getInfo(CanNodeType id, char* info, uint16_t buff_len, uint32_t tim
  * \see CanNode_setInfo()
  * \see CanNode_init()
  */
-void CanNode_setName(const CanNode* node, const char* name, uint8_t buff_len) {
-	//store the data in buffer into the space pointed to by node->name
-	//this address space resides in flash so a special process is taken
-	uint8_t i;
-	for(i=0; //continued on the next line
-		*name!='\0' &&      //is it a null character?
-		*name!= '\377' &&   //is it empty flash?
-		i<MAX_NAME_LEN-1 && //are we out of range of the total buffer
-		i<buff_len-1;       //are we out of range of the passed buffer
-	    i+=2){              //writing in 16 bit incriments, advance by 2 chars
-
-		//archatecture is little-endian (i think)
-		uint16_t chars = name[i] | (name[i+1] << 8);
-		flashWrite_16((uint32_t) &node->nodeNameBuff[i], chars);
-	}
-	//if odd pad last byte with a null character
-	if(buff_len & 1){
-		uint16_t chars = name[i] | ('\0' << 8);
-		flashWrite_16((uint32_t) &node->nodeNameBuff[i], chars);
-	}
-	else {
-		//add null character
-		flashWrite_16((uint32_t) &node->nodeNameBuff[i], (uint16_t) '\0');
-	}
-}	
-
-/**
- * Set the provided CanNode's info string attribute. This will be stored in flash
- * and will fail silently if it has already been set. 
- *
- * \param node CanNode to set name string of. Should be one initilized by 
- * CanNode_init(), eg. stored in flash. If passed a struct that is not in flash
- * this function may do unexspected things. 
- *
- * \param name String containing the info string, if it is longer than 
- * \ref MAX_INFO_LEN it will be truncated and a null charater added.
- *
- * \param buff_len length of the name string
- *
- * \see CanNode_setInfo()
- * \see CanNode_init()
- */
-void CanNode_setInfo(const CanNode* node, const char* info, uint8_t buff_len) {
+void CanNode_setName(CanNode* node, const char* name, uint8_t buff_len) {
 	//store the data in buffer into the space pointed to by node->name
 	//this address space resides in flash so a special process is taken
 	
-	uint8_t i;
-	for(i=0;                //continued on the next line
-	    *info!='\0' &&      //is it a null character?
-	    *info!= '\377' &&   //is it empty flash?
-		i<MAX_INFO_LEN-1 && //are we out of range of the total buffer
-		i<buff_len-1;       //are we out of range of the passed buffer
-	    i+=2){              //writing in 16 bit incriments, advance by 2 chars
+	//copy the node we want into ram
+	CanNode tempNode;
+	memcpy(&tempNode, node, sizeof(CanNode));
 
-		uint16_t chars = info[i] | (info[i+1] << 8);
-		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], chars);
-	}
-	//if odd pad last byte with a null character
-	if(buff_len & 1){
-		uint16_t chars = info[i] | ('\0' << 8);
-		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], chars);
-	}
-	else {
-		//add null character
-		flashWrite_16((uint32_t) &node->nodeInfoBuff[i], (uint16_t) '\0');
-	}
+	//copy the new name into the tempNode
+	memcpy(tempNode.nodeNameBuff, name, buff_len);
+
+	//save the node
+	CanNode_saveNode(node, &tempNode);
+}	
+
+/**
+ * Set the provided CanNode's info string attribute. This will be stored in flash.
+ *
+ * \param node CanNode to set name string of. Should be one initilized by 
+ * CanNode_init(), eg. stored in flash. If passed a struct that is not in flash
+ * this function may do unexspected things. 
+ *
+ * \param name String containing the info string, if it is longer than 
+ * \ref MAX_INFO_LEN it will be truncated and a null charater added.
+ *
+ * \param buff_len length of the name string
+ *
+ * \see CanNode_setInfo()
+ * \see CanNode_init()
+ */
+void CanNode_setInfo(CanNode* node, const char* info, uint8_t buff_len) {
+	//store the data in buffer into the space pointed to by node->name
+	//this address space resides in flash so a special process is taken
+	
+	//copy the node we want into ram
+	CanNode tempNode;
+	memcpy(&tempNode, node, sizeof(CanNode));
+
+	//copy the new name into the tempNode
+	memcpy(tempNode.nodeNameBuff, info, buff_len);
+
+	//save the node
+	CanNode_saveNode(node, &tempNode);
 }
 
 
@@ -914,34 +918,16 @@ void CanNode_nodeHandler(CanNode* node, CanMessage* msg) {
 		case CAN_SET_ID:
 			if(!configMode) break; //Hey! What's that clown doing?
 
-			//clear the flash data for the current node
-			//copy to ram while erasing
-			CanNode nodebak[MAX_NODES];
-			memcpy(nodebak, nodes, sizeof(CanNode)*MAX_NODES);
-			flashUnlock();
-			//erase flash
-			flashErasePage((uint32_t) &nodes[0]);
-			//copy all the nodes that are not the current node
-			for(uint8_t i=0; i<MAX_NODES; ++i) {
-				if(node != &nodes[i]) {
-					//set id
-					flashWrite_16((uint32_t) &nodes[i].id, nodebak[i].id);
+			//copy the node we are modifying into ram
+			CanNode tempNode;
+			memcpy(&tempNode, node, sizeof(CanNode));
 
-					for(uint8_t j=0; j<NUM_FILTERS; ++j){
-						flashWrite_16((uint32_t) &nodes[i].filters[j], nodebak[i].filters[j]);
-						//write the filter handler
-						flashWrite_32((uint32_t) &nodes[i].handle[j], 
-									  (uint32_t) nodebak[i].handle[j]);
-					}
-				}
-			}
-
-			//copy the current node
 			//get the id from the message
-			uint16_t id;
-			id  = (uint16_t)  msg->data[1];
-			id |= (uint16_t) (msg->data[2] << 8);
-			flashWrite_16((uint32_t) &node->id, id);
+			tempNode.id  = (uint16_t)  msg->data[1];
+			tempNode.id |= (uint16_t) (msg->data[2] << 8);
+
+			//save the node
+			CanNode_saveNode(node, &tempNode);
 			break;
 		case CAN_SET_NAME:
 			if(!configMode) break; 
@@ -950,7 +936,7 @@ void CanNode_nodeHandler(CanNode* node, CanMessage* msg) {
 			//to that address.
 			//get the name string with a 50ms timeout
 			char name[MAX_NAME_LEN];
-			CanNode_getInfo(node->id, name, MAX_NAME_LEN, 50);
+			CanNode_getName(node->id, name, MAX_NAME_LEN, 50);
 			CanNode_setName(node, name, MAX_NAME_LEN);
 			break;
 		case CAN_SET_INFO:
@@ -964,3 +950,5 @@ void CanNode_nodeHandler(CanNode* node, CanMessage* msg) {
 			break;
 	}
 }
+
+
