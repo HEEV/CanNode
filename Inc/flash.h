@@ -55,6 +55,8 @@ FlashError flashCopyPage(uint32_t src_addr, uint32_t dest_addr, bool erase);
 FlashError flashWrite_16(uint32_t addr, uint16_t data);
 /// \brief Write a piece of 32-bit data
 FlashError flashWrite_32(uint32_t addr, uint32_t data);
+/// \brief Write a block of memory to flash
+void flashWriteMemBlock(uint32_t addr, uint8_t* data, uint16_t len);
 //@}
 
 #endif //_FLASH_H_

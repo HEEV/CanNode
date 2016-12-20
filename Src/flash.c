@@ -1,4 +1,4 @@
-#include "../Inc/flash.h"
+#include <flash.h>
 
 void flashUnlock() {
 	while ((FLASH->SR & FLASH_SR_BSY) != 0 );     // Wait for the flash memory not to be busy
@@ -31,7 +31,7 @@ FlashError flashErasePage(uint32_t addr) {
 	FlashError status;
 	FLASH->CR |= FLASH_CR_PER;              // Page erase operation
 	FLASH->AR = addr;                  // Set the address to the page to be written
-	FLASH->CR |= FLASH_CR_STRT;	            // Start the page erase
+	FLASH->CR |= FLASH_CR_STRT;				// Start the page erase
 
 	while ((FLASH->SR & FLASH_SR_BSY) != 0);// Wait until page erase is done
 
@@ -107,4 +107,23 @@ FlashError flashWrite_32(uint32_t addr, uint32_t data){
 	status = flashWrite_16(addr+2, (uint16_t) data >> 16);
 
 	return status;
+}
+
+void flashWriteMemBlock(uint32_t addr, uint8_t* data, uint16_t len){
+	//writing in 16 bit incriments, advance by 2 chars
+	int i;
+	for(i=0; i<len-1; i+=2){ 
+		//archatecture is little-endian (i think)
+		uint16_t word = data[i] | (data[i+1] << 8);
+		flashWrite_16(addr, word);
+	}
+	//if odd pad last byte with a null character
+	if(len & 1){
+		uint16_t word = data[i] | (0x00 << 8);
+		flashWrite_16(addr, word);
+	}
+	else {
+		//add null character
+		flashWrite_16(addr, 0x0000);
+	}
 }
