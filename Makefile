@@ -32,7 +32,7 @@ OBJCOPY=arm-none-eabi-objcopy
 
 ODIR=obj
 
-CFLAGS += -O0 -Wall -g
+CFLAGS += -Os -Wall -g
 CFLAGS += --std=gnu11 --specs=nosys.specs -mthumb -mcpu=cortex-m0
 CFLAGS += -TSTM32F042F6_FLASH.ld -fdata-sections -ffunction-sections -Wl,--gc-sections
 
@@ -59,7 +59,7 @@ CAN_OBJ := $(CAN_SRC_EXP:.c=.o)
 .s.o:
 	$(CC) $(INCLUDE) $(CFLAGS) -c $< -o $@
 
-all: pot switch
+all: pot switch tags
 
 pot: $(CAN_OBJ) $(STM_OBJ) 
 	$(CC) $(CFLAGS) $(INCLUDE) pot_main.c $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME)-pot.elf
@@ -80,6 +80,12 @@ clean:
 
 size: 
 	size $(PROJ_NAME)*.elf
+
+tags: force_look
+	ctags -R *
+
+force_look:
+	true
 
 # Flash the STM32F4
 flash: all
