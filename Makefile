@@ -59,16 +59,12 @@ CAN_OBJ := $(CAN_SRC_EXP:.c=.o)
 .s.o:
 	$(CC) $(INCLUDE) $(CFLAGS) -c $< -o $@
 
-all: pot switch tags
+all: main tags size
 
-pot: $(CAN_OBJ) $(STM_OBJ) 
-	$(CC) $(CFLAGS) $(INCLUDE) pot_main.c $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME)-pot.elf
-	$(OBJCOPY) -O binary $(PROJ_NAME)-pot.elf $(PROJ_NAME)-pot.bin
-
-switch: $(CAN_OBJ) $(STM_OBJ)
-	$(CC) $(CFLAGS) $(INCLUDE) switch_main.c $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME)-switch.elf
-	$(OBJCOPY) -O binary $(PROJ_NAME)-switch.elf $(PROJ_NAME)-switch.bin
-
+main: $(CAN_OBJ) $(STM_OBJ) 
+	$(CC) $(CFLAGS) $(INCLUDE) main.c $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME).elf
+	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
+	
 CanNode: $(CAN_OBJ) $(STM_OBJ)
 	$(AR) rcs $(LIB_DIR)/libCanNode.a $(STM_OBJ) $(CAN_OBJ)
 
@@ -79,7 +75,7 @@ clean:
 	rm -f *.o $(CAN_OBJ) $(STM_OBJ) $(LIB_DIR)/* $(PROJ_NAME)*.elf $(PROJ_NAME)*.bin
 
 size: 
-	size $(PROJ_NAME)*.elf
+	arm-none-eabi-size $(PROJ_NAME)*.elf
 
 tags: force_look
 	ctags -R *
@@ -90,12 +86,9 @@ force_look:
 # Flash the STM32F4
 flash: all
 	dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000 -D $(PROJ_NAME).bin
-
-potflash: pot
-	st-flash write $(PROJ_NAME)-pot.bin 0x08000000
-
-switchflash: switch
-	st-flash write $(PROJ_NAME)-switch.bin 0x08000000
+	
+stflash: main
+	st-flash write $(PROJ_NAME).bin 0x08000000
 
 docs: 
 	doxygen Doxyfile
