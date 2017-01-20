@@ -75,6 +75,22 @@ void HardFault_Handler(void)
   /* USER CODE END HardFault_IRQn 1 */
 }
 
+extern PCD_HandleTypeDef hpcd_USB_FS;
+
+/**
+* @brief This function handles USB global Interrupt (combined with EXTI line 18).
+*/
+void USB_IRQHandler(void)
+{
+  /* USER CODE BEGIN USB_IRQn 0 */
+
+  /* USER CODE END USB_IRQn 0 */
+  HAL_PCD_IRQHandler(&hpcd_USB_FS);
+  /* USER CODE BEGIN USB_IRQn 1 */
+
+  /* USER CODE END USB_IRQn 1 */
+}
+
 /**
 * @brief This function handles System tick timer.
 */

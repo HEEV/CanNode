@@ -68,7 +68,10 @@ typedef enum {
 	SYS_I       = 1100, ///< System Current
 
 	TACHOMETER  = 1150, ///< uint8 - revolutions per second
-	WHEEL_TACH  = 1150, ///< Drive Wheel Tachometer
+	WHEEL_TACH  = 1150, ///< Drive Wheel Tachometer 
+	                    ///< Number of revolutions in the last second
+	WHEEL_TIME  = 1154, ///< Give the time taken for the last wheel revolution
+	                    ///< time is in mili-seconds.
 
 	LED			= 1100, ///< array of 4 uint8 RGBA
 } CanNodeType;

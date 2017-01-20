@@ -20,19 +20,8 @@ void can_init(void) {
 }
 
 static inline void can_io_init() {
-	//enable gpioa clock
-	RCC->AHBENR |= RCC_AHBENR_GPIOAEN;
-
-	/* CAN GPIO Configuration    
-	 * PA11     ------> CAN_RX
-	 * PA12     ------> CAN_TX 
-	 */
-	//altranate function pins
-	GPIOA->MODER |= GPIO_MODER_MODER12_1 | GPIO_MODER_MODER11_1;
-	//high speed pins
-	GPIOA->OSPEEDR |= GPIO_OSPEEDR_OSPEEDR12 | GPIO_OSPEEDR_OSPEEDR11; 
-	//AF4 (CAN)	
-	GPIOA->AFR[1] |= 4 << 16 | 4 << 12;
+	//call function defined for us by the stmCubeMX program
+	HAL_CAN_MspInit(&hcan);
 }
 
 void can_enable(void) {
