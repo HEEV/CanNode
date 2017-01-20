@@ -38,14 +38,14 @@
 
 /* Private define ------------------------------------------------------------*/
 
-#define IO1_Pin GPIO_PIN_7
-#define IO1_GPIO_Port GPIOA
-#define IO2_Pin GPIO_PIN_0
-#define IO2_GPIO_Port GPIOB
-#define LED2_Pin GPIO_PIN_3
-#define LED2_GPIO_Port GPIOB
-#define LED1_Pin GPIO_PIN_4
+#define IO2_Pin GPIO_PIN_7
+#define IO2_GPIO_Port GPIOA
+#define IO1_Pin GPIO_PIN_0
+#define IO1_GPIO_Port GPIOB
+#define LED1_Pin GPIO_PIN_3
 #define LED1_GPIO_Port GPIOB
+#define LED2_Pin GPIO_PIN_4
+#define LED2_GPIO_Port GPIOB
 /* USER CODE BEGIN Private defines */
 
 /* USER CODE END Private defines */

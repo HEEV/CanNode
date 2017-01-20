@@ -35,6 +35,8 @@ void MX_ADC_Init(void);
 void countRTR(CanMessage* data);
 void timeRTR(CanMessage* data);
 
+ADC_HandleTypeDef hadc;
+
 CanNode* wheelCountNode;
 CanNode* wheelTimeNode;
 volatile uint8_t  wheelCount;
@@ -44,19 +46,22 @@ int main(void) {
 	wheelCount=0;
 	wheelTime=0;
 	uint16_t switchState=0;
+	uint16_t buff_len = 50;
+	uint8_t buff[50];
+	uint16_t data;
+	int16_t adcVal;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
 	HAL_Init();
 
-	// Configure the system clock 
+	// Configure the system clock
 	SystemClock_Config();
 
 	// Initialize all configured peripherals
 	MX_GPIO_Init();
 	MX_NVIC_Init();
-    MX_USB_DEVICE_Init();
-	//MX_ADC_Init();
-    GPIOB->ODR |= LED1_Pin;
+    	MX_USB_DEVICE_Init();
+	MX_ADC_Init();
 
     
 	wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
@@ -83,21 +88,35 @@ int main(void) {
 		//check if there is a message necessary for CanNode functionality
 		CanNode_checkForMessages();
 
-		//switchState = GPIOA->IDR & GPIO_IDR_6;
+		HAL_ADC_Start(&hadc);
+        	HAL_ADC_PollForConversion(&hadc, 5);
+		adcVal = HAL_ADC_GetValue(&hadc);
+		switchState = IO1_GPIO_Port->IDR & IO1_Pin;
 
-        /*
+
+
 		if(switchState){
-			LED1_GPIO_Port->ODR |= LED1_Pin;
+			LED2_GPIO_Port->ODR |= LED2_Pin;
 			switchState = 1;
 		}
 		else{
-			LED1_GPIO_Port->ODR &= ~LED1_Pin;
+			LED2_GPIO_Port->ODR &= ~LED2_Pin;
 			switchState = 0;
 		}
-		*/
+
+
 		//send time data once every 0.5s
 		if(time % 500 == 0){
 			CanNode_sendData_uint32(wheelTimeNode, wheelTime);
+			itoa(adcVal, buff, 10);
+			strcat(buff, "\n\r");
+			if(switchState){
+				strcat(buff, "on\n\r");
+			}
+			else {
+				strcat(buff, "off\n\r");
+			}
+			CDC_Transmit_FS(buff, strlen(buff));
 		}
 		//send and reset count varible every second
 		if(time % 1000 == 0){
@@ -147,56 +166,70 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 void SystemClock_Config(void)
 {
 
-  RCC_OscInitTypeDef RCC_OscInitStruct;
-  RCC_ClkInitTypeDef RCC_ClkInitStruct;
-  RCC_PeriphCLKInitTypeDef PeriphClkInit;
+	RCC_OscInitTypeDef RCC_OscInitStruct;
+	RCC_ClkInitTypeDef RCC_ClkInitStruct;
+	RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
-  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSI48;
-  RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
-  RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
-  RCC_OscInitStruct.HSI14CalibrationValue = 16;
-  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-  HAL_RCC_OscConfig(&RCC_OscInitStruct);
+	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSI48;
+	RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
+	RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
+	RCC_OscInitStruct.HSI14CalibrationValue = 16;
+	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
+	HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
-  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-                              |RCC_CLOCKTYPE_PCLK1;
-  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI48;
-  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-  HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1);
+	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+		              |RCC_CLOCKTYPE_PCLK1;
+	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI48;
+	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+	HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1);
 
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-  PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
-  HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
+	PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+	HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
 
-  HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
+	HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
 
-  HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+	HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
 
-  /* SysTick_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+	/* SysTick_IRQn interrupt configuration */
+	HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
+/* ADC init function */
 void MX_ADC_Init(void) {
-    //configure ADC clock
-    RCC->APB2ENR |= RCC_APB2ENR_ADC1EN; //enable ADC clock
-    RCC->CR2 |= RCC_CR2_HSI14ON; //enable sample clock
-    while ((RCC->CR2 & RCC_CR2_HSI14RDY) == 0) { //wait for clock to start up
-        HAL_Delay(1);
-    }
+  ADC_ChannelConfTypeDef sConfig;
 
-    //configure ADC
-    ADC1->CR |= ADC_CR_ADEN; //enable ADC
-    while ((ADC1->ISR & ADC_ISR_ADRDY) == 0){ //wait until ready
-        HAL_Delay(1);
-    }
-    ADC1->CFGR2 &= (~ADC_CFGR2_CKMODE); //set ADC clock mode
+    /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+    */
+  hadc.Instance = ADC1;
+  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+  hadc.Init.Resolution = ADC_RESOLUTION_12B;
+  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+  hadc.Init.LowPowerAutoWait = DISABLE;
+  hadc.Init.LowPowerAutoPowerOff = DISABLE;
+  hadc.Init.ContinuousConvMode = DISABLE;
+  hadc.Init.DiscontinuousConvMode = ENABLE;
+  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+  hadc.Init.DMAContinuousRequests = DISABLE;
+  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+  HAL_ADC_Init(&hadc);
+
+    /**Configure for the selected ADC regular channel to be converted.
+    */
+  sConfig.Channel = ADC_CHANNEL_7;
+  sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
+  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+  HAL_ADC_ConfigChannel(&hadc, &sConfig);
 
 }
 
-/** Configure pins as 
-        * Analog 
-        * Input 
+
+/** Configure pins as
+        * Analog
+        * Input
         * Output
         * EVENT_OUT
         * EXTI
@@ -226,21 +259,21 @@ void MX_GPIO_Init(void)
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-    /*Configure GPIO pins : PA0 PA1 PA2 PA3 
-                           PA4 PA5 PA6 PA8 
+    /*Configure GPIO pins : PA0 PA1 PA2 PA3
+                           PA4 PA5 PA6 PA8
                            PA9 PA10 PA15 */
-    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3 
-                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_8 
+    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
+                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_8
                           |GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_15;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    /*Configure GPIO pins : PB1 PB2 PB10 PB11 
-                           PB12 PB13 PB14 PB15 
+    /*Configure GPIO pins : PB1 PB2 PB10 PB11
+                           PB12 PB13 PB14 PB15
                            PB5 PB6 PB7 */
-    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_11 
-                          |GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15 
+    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_11
+                          |GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15
                           |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -255,8 +288,8 @@ void MX_GPIO_Init(void)
 
     /*Configure GPIO pin Output Level */
     HAL_GPIO_WritePin(GPIOB, LED2_Pin|LED1_Pin, GPIO_PIN_SET);
-      
-      
+
+
     //configure IO1 as a rising edge interrupt pin
 	GPIO_InitStruct.Pin = IO1_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;

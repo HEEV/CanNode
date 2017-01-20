@@ -74,10 +74,10 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     PA7     ------> ADC_IN7
     PB0     ------> ADC_IN8 
     */
-    GPIO_InitStruct.Pin = IO1_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
+    //GPIO_InitStruct.Pin = IO1_Pin;
+    //GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+    //GPIO_InitStruct.Pull = GPIO_NOPULL;
+    //HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = IO2_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
