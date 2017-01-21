@@ -63,19 +63,6 @@ int main(void) {
 	wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
 	wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
 
-	//setup name/info strings
-	const char* wheelCountName = "Wheel revolution count";
-	const char* wheelCountInfo = "Gives the number of wheel revolutions in the "
-		                         "last second.";
-	CanNode_setName(wheelCountNode, wheelCountName, sizeof(wheelCountName));
-	CanNode_setInfo(wheelCountNode, wheelCountInfo, sizeof(wheelCountInfo));
-
-	const char* wheelTimeName = "Wheel rotation time";
-	const char* wheelTimeInfo = "Gives the ammount of time that the previous "
-		                        "Wheel revolution took.";
-	CanNode_setName(wheelTimeNode, wheelTimeName, sizeof(wheelTimeName));
-	CanNode_setInfo(wheelTimeNode, wheelTimeInfo, sizeof(wheelTimeInfo));
-
 	while (1) {
 		HAL_Delay(1);
 		//get the current time
@@ -112,11 +99,9 @@ int main(void) {
 			else {
 				strcat(buff, "off\n\r");
 			}
-			//itoa(wheelTimeNode->id, buff, 10);
-			memcpy(buff, wheelTimeNode->nodeNameBuff, MAX_NAME_LEN);
-			buff[MAX_NAME_LEN]='\0';
+			itoa(wheelTimeNode->id, buff, 10);
 			strcat(buff, "\n\r");
-			//CDC_Transmit_FS(buff, strlen(buff));
+			CDC_Transmit_FS(buff, strlen(buff));
 		}
 		//send and reset count varible every second
 		if(time % 1000 == 0){
