@@ -20,7 +20,6 @@
 
 #define IO1_ADC ADC_CHSELR_CHSEL6
 #define IO2_ADC ADC_CHSELR_CHSEL7
-#define IO3_ADC ADC_CHSELR_CHSEL9
 
 //transmit code or recieve code
 #define RECIEVE
@@ -28,7 +27,6 @@
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void MX_GPIO_Init(void);
-void MX_NVIC_Init(void);
 void MX_ADC_Init(void);
 
 /* Private function prototypes -----------------------------------------------*/
@@ -48,7 +46,6 @@ int main(void) {
 	uint16_t switchState=0;
 	uint16_t buff_len = 50;
 	uint8_t buff[50];
-	uint16_t data;
 	int16_t adcVal;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
@@ -59,11 +56,10 @@ int main(void) {
 
 	// Initialize all configured peripherals
 	MX_GPIO_Init();
-	MX_NVIC_Init();
     	MX_USB_DEVICE_Init();
-	MX_ADC_Init();
+//	MX_ADC_Init();
 
-    
+
 	wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
 	wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
 
@@ -79,22 +75,22 @@ int main(void) {
 		                        "Wheel revolution took.";
 	CanNode_setName(wheelTimeNode, wheelTimeName, sizeof(wheelTimeName));
 	CanNode_setInfo(wheelTimeNode, wheelTimeInfo, sizeof(wheelTimeInfo));
-	
 
 	while (1) {
-		//get the current time
 		HAL_Delay(1);
+		//get the current time
 		uint32_t time = HAL_GetTick();
 		//check if there is a message necessary for CanNode functionality
 		CanNode_checkForMessages();
 
+		/*
 		HAL_ADC_Start(&hadc);
         	HAL_ADC_PollForConversion(&hadc, 5);
 		adcVal = HAL_ADC_GetValue(&hadc);
-		switchState = IO1_GPIO_Port->IDR & IO1_Pin;
+		 */
+		switchState = IO2_GPIO_Port->IDR & IO2_Pin;
 
-
-
+		/*
 		if(switchState){
 			LED2_GPIO_Port->ODR |= LED2_Pin;
 			switchState = 1;
@@ -103,7 +99,7 @@ int main(void) {
 			LED2_GPIO_Port->ODR &= ~LED2_Pin;
 			switchState = 0;
 		}
-
+		 */
 
 		//send time data once every 0.5s
 		if(time % 500 == 0){
@@ -116,13 +112,17 @@ int main(void) {
 			else {
 				strcat(buff, "off\n\r");
 			}
-			CDC_Transmit_FS(buff, strlen(buff));
+			//itoa(wheelTimeNode->id, buff, 10);
+			memcpy(buff, wheelTimeNode->nodeNameBuff, MAX_NAME_LEN);
+			buff[MAX_NAME_LEN]='\0';
+			strcat(buff, "\n\r");
+			//CDC_Transmit_FS(buff, strlen(buff));
 		}
 		//send and reset count varible every second
 		if(time % 1000 == 0){
 			CanNode_sendData_uint8(wheelCountNode, wheelCount);
 			wheelCount=0;
-			HAL_GPIO_TogglePin(GPIOB, LED1_Pin);
+			HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
 		}
 	}
 }
@@ -136,17 +136,21 @@ void timeRTR(CanMessage* data){
 }
 
 //callback for pin6 (IO1) interrupt
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	static uint32_t startTime=0;
 	uint32_t newTime = HAL_GetTick();
 	uint32_t tempTime = newTime - startTime;
-	
+
 	//if the supposed time it takes for the wheel to go around is less than
-	//31/32 of the last time then it is just contact bounce and should be 
+	//31/32 of the last time then it is just contact bounce and should be
 	//ignored
+	/*
 	if(tempTime < wheelTime-(wheelTime>>5) ) {
 	    return;
+	}
+	 */
+	if(tempTime < 50){
+		return;
 	}
 	//get the elapsed time
 	wheelTime = tempTime;
@@ -155,7 +159,9 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	//increment the wheel count
 	++wheelCount;
 	//toggle led
-	LED2_GPIO_Port->ODR ^= LED2_Pin;
+	HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+	const char* buff = "flash\n\r";
+	CDC_Transmit_FS(buff, strlen(buff));
 }
 
 /** System Clock Configuration
@@ -291,19 +297,13 @@ void MX_GPIO_Init(void)
 
 
     //configure IO1 as a rising edge interrupt pin
-	GPIO_InitStruct.Pin = IO1_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
-	
+	GPIO_InitStruct.Pin = IO2_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
 
-}
-
-/** 
- * NVIC Configuration
- */
-void MX_NVIC_Init(void) {
 	/* EXTI4_15_IRQn interrupt configuration */
 	HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
 	HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+
 }

@@ -7,6 +7,9 @@
  */
 #include <stm32f0xx_hal.h>
 #include <CanNode.h>
+#include "usb_device.h"
+#include "usbd_cdc_if.h"
+
 #define UNUSED_FILTER 0xFFFF
 
 
