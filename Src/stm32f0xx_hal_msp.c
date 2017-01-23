@@ -79,10 +79,10 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     //GPIO_InitStruct.Pull = GPIO_NOPULL;
     //HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
 
-    GPIO_InitStruct.Pin = IO2_Pin;
+    GPIO_InitStruct.Pin = IO1_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
+    HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
 
     /* Peripheral interrupt init */
     HAL_NVIC_SetPriority(ADC1_IRQn, 0, 0);
