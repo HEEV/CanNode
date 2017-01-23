@@ -20,8 +20,6 @@
 
 #define IO1_ADC ADC_CHANNEL_8
 #define IO2_ADC ADC_CHANNEL_7
-//transmit code or recieve code
-#define RECIEVE
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
@@ -34,98 +32,132 @@ void timeRTR(CanMessage* data);
 
 ADC_HandleTypeDef hadc;
 
-CanNode* wheelCountNode;
-CanNode* wheelTimeNode;
+CanNode* wheelCountNode;      ///struct for transmitting the wheel RPS
+CanNode* wheelTimeNode;       ///struct for transmitting the wheel revolution time
+
+///varible for wheel RPS, modified by a ISR
 volatile uint8_t  wheelCount;
+///varible for wheel revolution time, modified by a ISR
 volatile uint32_t wheelTime;
+volatile uint32_t wheelStartTime; //used to reset wheelTime if we are stopped
+#define WHEEL_TIMEOUT 5000        //reset wheelTime after 5s without pulse
+
+///global flag (set in \ref Src/usb_cdc_if.c) for whether USB is connected
 volatile uint8_t USBConnected;
 
 int main(void) {
+	//setup globals
 	wheelCount=0;
 	wheelTime=0;
-	uint16_t adcVal;
-	uint8_t count_time_adc=0;
 	USBConnected = false;
+
+	//local varibles
+	uint16_t adcVal;
+	//state varible for switching between transmitting RPS, time, and adc value
+	uint8_t count_time_adc=0;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
 	HAL_Init();
 
 	// Configure the system clock
 	SystemClock_Config();
-
 	// Initialize all configured peripherals
 	MX_GPIO_Init();
- 	MX_USB_DEVICE_Init();
 	MX_ADC_Init();
+	MX_USB_DEVICE_Init();
 
 
+	//setup CAN, ID's, and gives each an RTR callback
 	wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
 	wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
 
 	while (1) {
-		char buff[50];
-
+		//make sure we don't do the same thing twice
 		HAL_Delay(1);
-		//get the current time
-		uint32_t time = HAL_GetTick();
+
 		//check if there is a message necessary for CanNode functionality
 		CanNode_checkForMessages();
 
+		//get the current time
+		uint32_t time = HAL_GetTick();
 
+		//read ADC value
 		HAL_ADC_Start(&hadc);
 		HAL_ADC_PollForConversion(&hadc, 5);
 		adcVal = HAL_ADC_GetValue(&hadc);
 
-
-		//send time data once every 0.5s
+		//stuff to do every half second
 		if(time % 500 == 0){
+			//send ammount of time per revolution
 			CanNode_sendData_uint32(wheelTimeNode, wheelTime);
 
+			// give information over USB, each message is sent every
+			// 1500ms.
 			if(USBConnected){
-				// The following is because sprintf() overflows
-				// flash and RAM.
+				//NOTE: the maximum buffer length is set in the
+				//USB code to be 64 bytes.
+				char buff[50];
+
+				//setup the buffer with the required information
+				//The data is sent in a CSV format like the following
+				// RPS, Time per revolution in ms, ADC value
 				if(count_time_adc == 0){
 					itoa(wheelCount, buff, 10);
-					strcat(buff, "\n\r");
+					strcat(buff, ", ");
 					count_time_adc=1;
 				}
 				else if(count_time_adc == 1){
 					itoa(wheelTime, buff, 10);
-					strcat(buff, "\n\r");
+					strcat(buff, ", ");
 					count_time_adc=2;
 				}
 				else {
 					itoa(adcVal, buff, 10);
-					strcat(buff, "\n\r\n\r");
+					//send a break between data sets
+					strcat(buff, "\n\r");
 					count_time_adc=0;
 				}
 
+				//do the actual transmission
 				CDC_Transmit_FS(buff, strlen(buff));
 			}
 		}
 
-		//send and reset count varible every second
+		//stuff to do every second
 		if(time % 1000 == 0){
+			//send RPS data
 			CanNode_sendData_uint8(wheelCountNode, wheelCount);
+
+			//reset RPS varible
+			wheelCount=0;
+
+			//check if we should reset wheelTime
+			if(time-wheelStartTime >= WHEEL_TIMEOUT)
+
+			//blink heartbeat LED
 			HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
 
-			wheelCount=0;
 		}
 	}
 }
 
+///RTR handler for the RPS id
 void countRTR(CanMessage* data){
 	CanNode_sendData_uint8(wheelCountNode, wheelCount);
 }
 
+///RTR handler for the wheel revolution time id
 void timeRTR(CanMessage* data){
 	CanNode_sendData_uint32(wheelTimeNode, wheelTime);
 }
 
-//callback for pin6 (IO1) interrupt
+///callback for pin6 (IO1) interrupt
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+	//when was our last pulse
 	static uint32_t startTime=0;
+	//what is our current time
 	uint32_t newTime = HAL_GetTick();
+	//how long did this revolution take
 	uint32_t tempTime = newTime - startTime;
 
 	//if the supposed time it takes for the wheel to go around is less than
@@ -142,18 +174,17 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	if(tempTime < 50){
 		return;
 	}
-	//get the elapsed time
-	wheelTime = tempTime;
+
 	//set the new start time
-	startTime = newTime;
-	//increment the wheel count
-	++wheelCount;
+	startTime = wheelStartTime = newTime;
+
+	wheelTime = tempTime; //Valid pulse, save the value
+	++wheelCount; //increment the wheel count
+
 	//toggle led
 	HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 }
 
-/** System Clock Configuration
-*/
 
 /** System Clock Configuration
 */
@@ -192,99 +223,97 @@ void SystemClock_Config(void)
 
 /* ADC init function */
 void MX_ADC_Init(void) {
-  ADC_ChannelConfTypeDef sConfig;
+	ADC_ChannelConfTypeDef sConfig;
 
-    /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
-    */
-  hadc.Instance = ADC1;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-  hadc.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
-  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc.Init.LowPowerAutoWait = DISABLE;
-  hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc.Init.ContinuousConvMode = DISABLE;
-  hadc.Init.DiscontinuousConvMode = ENABLE;
-  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc.Init.DMAContinuousRequests = DISABLE;
-  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  HAL_ADC_Init(&hadc);
+	/**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
+	*/
+	hadc.Instance = ADC1;
+	hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+	hadc.Init.Resolution = ADC_RESOLUTION_12B;
+	hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+	hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+	hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+	hadc.Init.LowPowerAutoWait = DISABLE;
+	hadc.Init.LowPowerAutoPowerOff = DISABLE;
+	hadc.Init.ContinuousConvMode = DISABLE;
+	hadc.Init.DiscontinuousConvMode = ENABLE;
+	hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+	hadc.Init.DMAContinuousRequests = DISABLE;
+	hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+	HAL_ADC_Init(&hadc);
 
-    /**Configure for the selected ADC regular channel to be converted.
-    */
-  sConfig.Channel = IO1_ADC;
-  sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  HAL_ADC_ConfigChannel(&hadc, &sConfig);
-
+	/**Configure for the selected ADC regular channel to be converted.
+	*/
+	sConfig.Channel = IO1_ADC;
+	sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
+	sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+	HAL_ADC_ConfigChannel(&hadc, &sConfig);
 }
 
 
 /** Configure pins as
-        * Analog
-        * Input
-        * Output
-        * EVENT_OUT
-        * EXTI
-        * Free pins are configured automatically as Analog (this feature is enabled through 
-        * the Code Generation settings)
-*/
-void MX_GPIO_Init(void)
-{
+ * Analog
+ * Input
+ * Output
+ * EVENT_OUT
+ * EXTI
+ * Free pins are configured automatically as Analog (this feature is enabled through
+ * the Code Generation settings)
+ */
+void MX_GPIO_Init(void) {
 
-    GPIO_InitTypeDef GPIO_InitStruct;
+GPIO_InitTypeDef GPIO_InitStruct;
 
-    /* GPIO Ports Clock Enable */
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    __HAL_RCC_GPIOF_CLK_ENABLE();
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOB_CLK_ENABLE();
+	/* GPIO Ports Clock Enable */
+	__HAL_RCC_GPIOC_CLK_ENABLE();
+	__HAL_RCC_GPIOF_CLK_ENABLE();
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
-    /*Configure GPIO pins : PC13 PC14 PC15 */
-    GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+	/*Configure GPIO pins : PC13 PC14 PC15 */
+	GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
+	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-    /*Configure GPIO pins : PF0 PF1 PF11 */
-    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_11;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
+	/*Configure GPIO pins : PF0 PF1 PF11 */
+	GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_11;
+	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
-    /*Configure GPIO pins : PA0 PA1 PA2 PA3
-                           PA4 PA5 PA6 PA8
-                           PA9 PA10 PA15 */
-    GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
-                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_8
-                          |GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_15;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+	/*Configure GPIO pins : PA0 PA1 PA2 PA3
+		               PA4 PA5 PA6 PA8
+		               PA9 PA10 PA15 */
+	GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
+		              |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_8
+		              |GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_15;
+	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
-    /*Configure GPIO pins : PB1 PB2 PB10 PB11
-                           PB12 PB13 PB14 PB15
-                           PB5 PB6 PB7 */
-    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_11
-                          |GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15
-                          |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
-    GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	/*Configure GPIO pins : PB1 PB2 PB10 PB11
+		               PB12 PB13 PB14 PB15
+		               PB5 PB6 PB7 */
+	GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_11
+		              |GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15
+		              |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
+	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-    /*Configure GPIO pins : LED2_Pin LED1_Pin */
-    GPIO_InitStruct.Pin = LED2_Pin|LED1_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-    HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+	/*Configure GPIO pins : LED2_Pin LED1_Pin */
+	GPIO_InitStruct.Pin = LED2_Pin|LED1_Pin;
+	GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
-    /*Configure GPIO pin Output Level */
-    HAL_GPIO_WritePin(GPIOB, LED2_Pin|LED1_Pin, GPIO_PIN_SET);
+	/*Configure GPIO pin Output Level */
+	HAL_GPIO_WritePin(GPIOB, LED2_Pin|LED1_Pin, GPIO_PIN_SET);
 
 
-    //configure IO1 as a rising edge interrupt pin
+//configure IO1 as a rising edge interrupt pin
 	GPIO_InitStruct.Pin = IO2_Pin;
 	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
 	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
