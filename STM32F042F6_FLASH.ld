@@ -35,9 +35,7 @@ _Min_Stack_Size = 0x400; /* required amount of stack */
 /* Specify the memory areas */
 MEMORY
 {
-FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 31K
-CANBAK (r)  : ORIGIN = 0x08007800, LENGTH = 1K /*Backup of CanInfo on p30*/
-CANINFO (r)    : ORIGIN = 0x08007C00, LENGTH = 1K /*CanInfo stuff on p31*/
+FLASH (rx)     : ORIGIN = 0x08000000, LENGTH = 32K
 RAM (xrw)      : ORIGIN = 0x20000000, LENGTH = 6K
 }
 
@@ -106,28 +104,11 @@ SECTIONS
     PROVIDE_HIDDEN (__fini_array_end = .);
   } >FLASH
 
-  /* 1K section for backing up CANINFO while it is being erased */
-  .canbak :
-  {
-	  . = ALIGN(4);
-	  *(.canbak)
-	  *(.canbak*)
-	  . = ALIGN(4);
-  } >CANBAK
-
-  /* 1K section at the end of flash for storing can info */
-  .can :
-  {
-	  . = ALIGN(4);
-	  *(.can)
-	  *(.can*)
-	  . = ALIGN(4);
-  } >CANINFO
   /* used by the startup to initialize data */
   _sidata = LOADADDR(.data);
 
   /* Initialized data sections goes into RAM, load LMA copy after code */
-  .data : 
+  .data :
   {
     . = ALIGN(4);
     _sdata = .;        /* create a global symbol at data start */
@@ -138,7 +119,7 @@ SECTIONS
     _edata = .;        /* define a global symbol at data end */
   } >RAM AT> FLASH
 
-  
+
   /* Uninitialized data section */
   . = ALIGN(4);
   .bss :
