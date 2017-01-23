@@ -18,9 +18,8 @@
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
 
-#define IO1_ADC ADC_CHSELR_CHSEL6
-#define IO2_ADC ADC_CHSELR_CHSEL7
-
+#define IO1_ADC ADC_CHANNEL_8
+#define IO2_ADC ADC_CHANNEL_7
 //transmit code or recieve code
 #define RECIEVE
 
@@ -39,14 +38,14 @@ CanNode* wheelCountNode;
 CanNode* wheelTimeNode;
 volatile uint8_t  wheelCount;
 volatile uint32_t wheelTime;
+volatile uint8_t USBConnected;
 
 int main(void) {
 	wheelCount=0;
 	wheelTime=0;
-	uint16_t switchState=0;
-	uint16_t buff_len = 50;
-	uint8_t buff[50];
-	int16_t adcVal;
+	uint16_t adcVal;
+	uint8_t count_time_adc=0;
+	USBConnected = false;
 
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
 	HAL_Init();
@@ -56,58 +55,61 @@ int main(void) {
 
 	// Initialize all configured peripherals
 	MX_GPIO_Init();
-    	MX_USB_DEVICE_Init();
-//	MX_ADC_Init();
+ 	MX_USB_DEVICE_Init();
+	MX_ADC_Init();
 
 
 	wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
 	wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
 
 	while (1) {
+		char buff[50];
+
 		HAL_Delay(1);
 		//get the current time
 		uint32_t time = HAL_GetTick();
 		//check if there is a message necessary for CanNode functionality
 		CanNode_checkForMessages();
 
-		/*
-		HAL_ADC_Start(&hadc);
-        	HAL_ADC_PollForConversion(&hadc, 5);
-		adcVal = HAL_ADC_GetValue(&hadc);
-		 */
-		switchState = IO2_GPIO_Port->IDR & IO2_Pin;
 
-		/*
-		if(switchState){
-			LED2_GPIO_Port->ODR |= LED2_Pin;
-			switchState = 1;
-		}
-		else{
-			LED2_GPIO_Port->ODR &= ~LED2_Pin;
-			switchState = 0;
-		}
-		 */
+		HAL_ADC_Start(&hadc);
+		HAL_ADC_PollForConversion(&hadc, 5);
+		adcVal = HAL_ADC_GetValue(&hadc);
+
 
 		//send time data once every 0.5s
 		if(time % 500 == 0){
 			CanNode_sendData_uint32(wheelTimeNode, wheelTime);
-			itoa(adcVal, buff, 10);
-			strcat(buff, "\n\r");
-			if(switchState){
-				strcat(buff, "on\n\r");
+
+			if(USBConnected){
+				// The following is because sprintf() overflows
+				// flash and RAM.
+				if(count_time_adc == 0){
+					itoa(wheelCount, buff, 10);
+					strcat(buff, "\n\r");
+					count_time_adc=1;
+				}
+				else if(count_time_adc == 1){
+					itoa(wheelTime, buff, 10);
+					strcat(buff, "\n\r");
+					count_time_adc=2;
+				}
+				else {
+					itoa(adcVal, buff, 10);
+					strcat(buff, "\n\r\n\r");
+					count_time_adc=0;
+				}
+
+				CDC_Transmit_FS(buff, strlen(buff));
 			}
-			else {
-				strcat(buff, "off\n\r");
-			}
-			itoa(wheelTimeNode->id, buff, 10);
-			strcat(buff, "\n\r");
-			CDC_Transmit_FS(buff, strlen(buff));
 		}
+
 		//send and reset count varible every second
 		if(time % 1000 == 0){
 			CanNode_sendData_uint8(wheelCountNode, wheelCount);
-			wheelCount=0;
 			HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+
+			wheelCount=0;
 		}
 	}
 }
@@ -127,12 +129,15 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	uint32_t tempTime = newTime - startTime;
 
 	//if the supposed time it takes for the wheel to go around is less than
-	//31/32 of the last time then it is just contact bounce and should be
+	//31/32 of the last time then it is just bounce contact and should be
 	//ignored
 	/*
 	if(tempTime < wheelTime-(wheelTime>>5) ) {
-	    return;
+		return;
 	}
+	 */
+
+	/* If the new time is less than 50ms than it was a fluke
 	 */
 	if(tempTime < 50){
 		return;
@@ -145,8 +150,6 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 	++wheelCount;
 	//toggle led
 	HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
-	const char* buff = "flash\n\r";
-	CDC_Transmit_FS(buff, strlen(buff));
 }
 
 /** System Clock Configuration
@@ -210,7 +213,7 @@ void MX_ADC_Init(void) {
 
     /**Configure for the selected ADC regular channel to be converted.
     */
-  sConfig.Channel = ADC_CHANNEL_7;
+  sConfig.Channel = IO1_ADC;
   sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
   sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
   HAL_ADC_ConfigChannel(&hadc, &sConfig);
@@ -283,8 +286,8 @@ void MX_GPIO_Init(void)
 
     //configure IO1 as a rising edge interrupt pin
 	GPIO_InitStruct.Pin = IO2_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-	GPIO_InitStruct.Pull = GPIO_NOPULL;
+	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 	HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
 
 	/* EXTI4_15_IRQn interrupt configuration */
