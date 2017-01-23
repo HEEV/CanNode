@@ -85,13 +85,10 @@ force_look:
 
 # Flash the STM32F4
 flash: all
-	dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000:mass-erase:force:leave -D $(PROJ_NAME).bin
+	dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000:leave -D $(PROJ_NAME).bin
 
-erase:
-	dfu-util -d 0483:df11 -c 1 -i 0 -a 0 -s 0x08000000:force:mass-erase:leave -D $(PROJ_NAME).bin
-	
 stflash: main
 	st-flash write $(PROJ_NAME).bin 0x08000000
 
-docs: 
+docs:
 	doxygen Doxyfile
