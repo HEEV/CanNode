@@ -1,11 +1,11 @@
 /**
- * \mainpage %CanNode library documentation
+ * \mainpage [CanNode library](\ref CanNode_Module] documentation
  *
  * \tableofcontents
  *
  * \section About About The CanNode Library
  *
- * The %CanNode library attempts to provide an easy to use interface for 
+ * The [CanNode library](\ref CanNode_Module) attempts to provide an easy to use interface for
  * connecting CANBus devices together over a network. The library targets stm32 
  * devices with a CANBus hardware built in; although porting to a PC application 
  * should be possible. 
@@ -14,14 +14,14 @@
  * nodes without reprogramming. For more information on that see the 
  * \ref CanNodeProtocol page. 
  *
- * The CanNode library was written by Samuel Ellicott for the Cedarville 
+ * The \ref CanNode_Module library was written by Samuel Ellicott for the Cedarville
  * University Shell Eco Marathon team. 
  *
  *
  * \section Useage
  *
  * Nodes are created by calling CanNode_init() which returns a pointer to
- * an initilized CanNode struct saved in flash memory on the device. 
+ * an initilized CanNode.
  * This pointer is then used to send data over the CANBus by means of the 
  * \ref sendData functions. The CanNode structure also provides for the storage
  * of a name and information string which can be retrieved and modified by the 
@@ -120,6 +120,9 @@
  * \page CanNodeProtocol %CanNode Protocol Implementation Details
  * \tableofcontents
  *
+ * This page is about my higher level CAN protocol, for more about the underlying
+ * protocol see the [wikipedia article](https://en.wikipedia.org/wiki/CAN_bus).
+ *
  * \section General General Information About the Protocol
  * The goal of the %CanNode protocol is to provide a uniform and safe method for
  * passing data between CAN devices. It provides an interface to pass various
@@ -129,10 +132,10 @@
  *
  * \section Implementation Implementation Details
  * Data is sent over the CANbus in messages containing an 11-bit id and up to 8 
- * bytes of data. Messages can either request information (RTR) for a certain 
+ * bytes of data. Messages can either request information (RTR) for a certain
  * id, or provide data to other nodes on the bus. The id gives information about
  * the data contained in the packet, so that receiving nodes can filter out 
- * unwanted packets. See \ref CANFiltering for more information
+ * unwanted packets.
  *
  * \subsection ConfigurationByte Configuration Byte
  * The first byte of the CAN message is the configuration byte. This allows for
@@ -153,39 +156,42 @@
  * defined in \ref CanNodeMsgType.
  *
  * Most of the time data (\ref CAN_DATA) is sent and only type information is
- * necessary. However, in certain circumstances other message types are 
- * required. Most of the other types are used internally in the %CanNode 
+ * necessary. However, in certain circumstances other message types are
+ * required. Most of the other types are used internally in the %CanNode
  * Library.
  *
  * #### FMT[2:0] ####
- * Defines how the data is stored in the Data portion of the message. 
+ * Defines how the data is stored in the Data portion of the message.
  * It can be one of types defined in \ref CanNodeDataType.
  *
  * \subsection Addressing  CanNode Addressing
- * 
- * Each CanNode reserves for itself four ids. The first of these ids (base id) 
- * is used to broadcast data on. It can also be called by rtr and the latest 
+ *
+ * Each CanNode reserves for itself four ids. The first of these ids (base id)
+ * is used to broadcast data on. It can also be called by rtr and the latest
  * data collected from it. The second id is for getting the Name string from the
  * node. The third id is for getting the info string. Finally the fourth id is
- * used for configuring the node at runtime. 
+ * used for configuring the node at runtime.
  *
- * Devices are addressed using a base address for the 0th sensor of that type, 
- * then a number of subsequent addresses are used for other sensors of the same 
+ * Devices are addressed using a base address for the 0th sensor of that type,
+ * then a number of subsequent addresses are used for other sensors of the same
  * type. This is the method employed by Megasquirt.
+ *
+ * For a list of devices currently planned for the Supermileage CanBus see
+ * \ref CanNodeType
  *
  *  ### Example List of Addresses ###
  *  * 1264 - 1391: Relays
- *		** 1264 - 1267: Starter Relay
- *		** 1268 - 1271: Brights
- *		** 1272 - 1275: Left Turn Signal
- *		** 1276 - 1280: Right Turn Signal
+ *   * 1264 - 1267: Starter Relay
+ *   * 1268 - 1271: Brights
+ *   * 1272 - 1275: Left Turn Signal
+ *   * 1276 - 1280: Right Turn Signal
  *  * 1392 - 1519: LEDs
  *  * 1520 - 1583: Megasqurit
  *  * 1584 - 1647: Switches
- *		** 1584 - 1587: Engine Stop Switch
- *		** 1588 - 1592: Engine Start Switch
+ *   * 1584 - 1587: Engine Stop Switch
+ *   * 1588 - 1592: Engine Start Switch
  *  * 1648 - 1663: Pressure Sensors
- *		** 1648 - 1651: Pitot Tube
+ *   * 1648 - 1651: Pitot Tube
  *  * 1664 - 1728: Temperature Sensors
  *
  * \subsection Data Data
@@ -198,4 +204,13 @@
  * For 8-bit types (int8_t and uint8_t) a CanNodeMessage is two bytes long, for
  * 16-bit types (int16_t and uint16_t) messages are 3 bytes long. 32-bit types
  * are 5 bytes. 64-bit types are not supported.
+ *
+ * - - -
+ *
+ * \par Copyright:
+ * Copyright 2016 Samuel Ellicott. All rights reserved.
+ *
+ * \par License:
+ * Unless otherwise specified all code in the %CanNode library is
+ * released under a [BSD 3-Clause License](https://opensource.org/licenses/BSD-3-Clause)
  */

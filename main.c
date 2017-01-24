@@ -30,17 +30,23 @@ void MX_ADC_Init(void);
 void countRTR(CanMessage* data);
 void timeRTR(CanMessage* data);
 
+/// Struct for initilizing ADC
 ADC_HandleTypeDef hadc;
-
-CanNode* wheelCountNode;      ///struct for transmitting the wheel RPS
-CanNode* wheelTimeNode;       ///struct for transmitting the wheel revolution time
+/// Struct for transmitting the wheel RPS
+CanNode* wheelCountNode;
+/// Struct for transmitting the wheel revolution time
+CanNode* wheelTimeNode;
 
 ///varible for wheel RPS, modified by a ISR
 volatile uint8_t  wheelCount;
-///varible for wheel revolution time, modified by a ISR
+/// Varible for wheel revolution time, modified by a ISR
 volatile uint32_t wheelTime;
-volatile uint32_t wheelStartTime; //used to reset wheelTime if we are stopped
-#define WHEEL_TIMEOUT 5000        //reset wheelTime after 5s without pulse
+/// Varible used to reset wheelTime if vehicle is stopped
+volatile uint32_t wheelStartTime;
+/// Timeout for reseting wheelTime (~5s without pulse)
+#define WHEEL_TIMEOUT 5000
+/// Make the time as long as we can to indicate a stopped wheel
+#define WHEEL_STOPPED 0xFFFFFF
 
 ///global flag (set in \ref Src/usb_cdc_if.c) for whether USB is connected
 volatile uint8_t USBConnected;
@@ -48,7 +54,7 @@ volatile uint8_t USBConnected;
 int main(void) {
 	//setup globals
 	wheelCount=0;
-	wheelTime=0;
+	wheelTime=WHEEL_STOPPED;
 	USBConnected = false;
 
 	//local varibles
@@ -81,13 +87,14 @@ int main(void) {
 		//get the current time
 		uint32_t time = HAL_GetTick();
 
-		//read ADC value
-		HAL_ADC_Start(&hadc);
-		HAL_ADC_PollForConversion(&hadc, 5);
-		adcVal = HAL_ADC_GetValue(&hadc);
-
 		//stuff to do every half second
 		if(time % 500 == 0){
+
+			//read ADC value
+			HAL_ADC_Start(&hadc);
+			HAL_ADC_PollForConversion(&hadc, 5);
+			adcVal = HAL_ADC_GetValue(&hadc);
+
 			//send ammount of time per revolution
 			CanNode_sendData_uint32(wheelTimeNode, wheelTime);
 
@@ -132,7 +139,9 @@ int main(void) {
 			wheelCount=0;
 
 			//check if we should reset wheelTime
-			if(time-wheelStartTime >= WHEEL_TIMEOUT)
+			if(time-wheelStartTime >= WHEEL_TIMEOUT){
+				wheelTime=WHEEL_STOPPED;
+			}
 
 			//blink heartbeat LED
 			HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
@@ -264,11 +273,10 @@ void MX_GPIO_Init(void) {
 
 GPIO_InitTypeDef GPIO_InitStruct;
 
+	// Make all unused pins analog to save power
 	/* GPIO Ports Clock Enable */
 	__HAL_RCC_GPIOC_CLK_ENABLE();
 	__HAL_RCC_GPIOF_CLK_ENABLE();
-	__HAL_RCC_GPIOA_CLK_ENABLE();
-	__HAL_RCC_GPIOB_CLK_ENABLE();
 
 	/*Configure GPIO pins : PC13 PC14 PC15 */
 	GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
@@ -301,6 +309,13 @@ GPIO_InitTypeDef GPIO_InitStruct;
 	GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
 	GPIO_InitStruct.Pull = GPIO_NOPULL;
 	HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+	__HAL_RCC_GPIOC_CLK_DISABLE();
+	__HAL_RCC_GPIOF_CLK_DISABLE();
+
+	//Enable used io pins
+	__HAL_RCC_GPIOA_CLK_ENABLE();
+	__HAL_RCC_GPIOB_CLK_ENABLE();
 
 	/*Configure GPIO pins : LED2_Pin LED1_Pin */
 	GPIO_InitStruct.Pin = LED2_Pin|LED1_Pin;

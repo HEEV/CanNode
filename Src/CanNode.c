@@ -14,36 +14,20 @@ static CanNode nodes[MAX_NODES];
 static bool newMessage; 
 static CanMessage tmpMsg;
 
+///\brief function to handle all the CanNode internal functions
 static void CanNode_nodeHandler(CanNode* node, CanMessage* msg);
 
-
 /**
- * Initilizes an empty CanNode structure to the values provided and saves it
- * to flash or retrieves a previously saved value from flash. This function has
- * two modes of operation determined by the force paramater. 
+ * Initilizes an empty CanNode structure to the values provided.
  *
- * -# force = false\n 
- *  *NOTE: You should use this mode for sensors*
- *		-# The function checks whether a node of the same id 
- *		as the one provided exist. If one does, it returns the address of it.
- *		-# The function tries to find an initilized node that has not been given
- *		out to another caller. If one exists, return its address.
- *		-# Try to initilize a node with the provded parameters if there is an 
- *		empty space.
- *		-# If the above fails, return NULL (this should never happen)
- * -# force = true\n
- *  *NOTE: You should use this mode for things that should not be overwritten in
- *  runtime. Using this mode reverts any changes back to what is in the compiled
- *  code at reset.*
- *		-# The function checks whether a node of the same id 
- *		as the one provided exist. If one does, it returns the address of it.
- *		-# Try to initilize a node with the provded parameters if there is an 
- *		empty space.
- *		-# If the above fails, return NULL 
+ * This function basicaly uses the integer value of the \ref CanNodeType enum
+ * passed to it to populate the id field of an internal CanNode structure. It
+ * also populates the RTR callback from the provided function. Additional callbacks
+ * are added by using the \ref CanNode_addFilter() function.
  *
- * \param[in] id CAN Address, use the CanNodeType type plus a constant.
+ * \param[in] id CAN Address, use the \ref CanNodeType type.
  * \param[in] rtrHandle function pointer to a handler function for rtr requests.
- * \param[in] force Force the creation of a new node of the given paramaters 
+ * \param[in] force (depricated) Force the creation of a new node of the given paramaters
  * if an old one is not found in flash memory.
  *
  * \returns the address of a \ref CanNode struct that stores the can information.
@@ -88,49 +72,27 @@ CanNode* CanNode_init(CanNodeType id, filterHandler rtrHandle, bool force) {
 	return node;//returns null if no empty spots found
 }
 
-void CanNode_saveNode(CanNode* flashNode, CanNode* newNode){
-	//clear the flash data for the current node
-
-	//copy to ram while erasing
-	CanNode nodebak[MAX_NODES];
-	memcpy(nodebak, nodes, sizeof(CanNode)*MAX_NODES);
-
-	//unlock the flash for writing
-	flashUnlock();
-	//erase flash
-	flashErasePage((uint32_t) &nodes[0]);
-
-	//copy all the nodes that are not the node we are changing
-	for(uint8_t i=0; i<MAX_NODES; ++i) {
-		if(flashNode != &nodes[i]) {
-			//copy the node
-			flashWriteMemBlock((uint32_t) &nodes[i],
-					(uint8_t*) &nodes[0], sizeof(CanNode));
-		}
-	}
-	//copy over the new node
-	flashWriteMemBlock((uint32_t) flashNode, (uint8_t*) newNode, sizeof(CanNode));
-
-	//relock the flash
-	flashLock();
-}
-
 /**
- * Saves a filter id and a handler to a node in flash memory. The function also
+ * Saves a filter id and a handler to a node local to the library. The function also
  * accepts a function which gets called if a message from that id is avalible.
  *
  * Ids from 0 - 52 are reserved for the use of passing the return value of
  * can_add_filter_mask() to the function as a id. This allows for the use of
- * id masks instead of identifier lists for filtering. It is adviseable to force * the reintilization of the node by passing true to the force paramater of
- * CanNode_init().
+ * id masks instead of identifier lists for filtering.
  *
- * \param[in,out] node pointer to a node saved in flash memory
- * \param[in] filter id of the device that should be handled by handle
- * \param[in] handle function used to handle the filter
+ * Example code
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * uint16_t id = can_add_filter_mask(id_to_filter, id_mask);
+ * CanNode_addFilter(id, handler);
+ * ~~~~~~~~~~~~
+ *
+ * \param node [in,out] pointer to a node that was initilized with CanNode_init()
+ * \param filter [in] id of the device that should be handled by handle
+ * \param handle [in] function used to handle the filter
  *
  * \returns true if the filter was added, false if otherwise.
  *
- * \see CanNode_init()
  * \see can_add_filter_mask() for using mask filtering
  */
 bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
@@ -146,8 +108,11 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 			//save a pointer to the handler function
 			node->handle[i]=handle;
 
-
-			//if not a reseved address, add to hardware filtering
+			/*
+			 * If not a reseved address, add to hardware filtering
+			 * aka. It's assumed that the id was already added to the
+			 * hardware filtering if the id is below 52.
+			 */
 			if(filter > 52){
 				can_add_filter_id(filter);
 			}
@@ -161,15 +126,21 @@ bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle) {
 
 //getter and setter functions -------------------------------------------------
 
-/**
- * \param node pointer to a CanNode
- * \param data data to send
+/** \ingroup CanNode_SendData_Functions
+ *
+ * \param node [in] Specifies the node to send data from (basically an id)
+ * \param data [in] Data to send
  *
  * \see CanNode_sendData_uint8()
  * \see CanNode_sendData_int16()
  * \see CanNode_sendData_uint16()
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_int16()
  */
 void CanNode_sendData_int8(const CanNode* node, int8_t data) {
 	CanMessage msg;
@@ -184,14 +155,19 @@ void CanNode_sendData_int8(const CanNode* node, int8_t data) {
 	can_tx(&msg, 5);
 }
 /**
- * \param node pointer to a CanNode
- * \param data data to send
+ * \param[in] node Specifies the node to send data from (basically an id)
+ * \param[in] data Data to send
  *
  * \see CanNode_sendData_int8()
  * \see CanNode_sendData_int16()
  * \see CanNode_sendData_uint16()
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_int16()
  */
 void CanNode_sendData_uint8(const CanNode* node, uint8_t data) {
 	CanMessage msg;
@@ -207,14 +183,19 @@ void CanNode_sendData_uint8(const CanNode* node, uint8_t data) {
 }
 
 /**
- * \param node pointer to a CanNode
- * \param data data to send
+ * \param[in] node Specifies the node to send data from (basically an id)
+ * \param[in] data Data to send
  *
  * \see CanNode_sendData_int8()
  * \see CanNode_sendData_uint8()
  * \see CanNode_sendData_uint16()
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_int16()
  */
 void CanNode_sendData_int16(const CanNode* node, int16_t data) {
 	CanMessage msg;
@@ -231,14 +212,19 @@ void CanNode_sendData_int16(const CanNode* node, int16_t data) {
 }
 
 /**
- * \param node pointer to a CanNode
- * \param data data to send
+ * \param[in] node Specifies the node to send data from (basically an id)
+ * \param[in] data Data to send
  *
  * \see CanNode_sendData_int8()
  * \see CanNode_sendData_uint8()
  * \see CanNode_sendData_int16()
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_int16()
  */
 void CanNode_sendData_uint16(const CanNode* node, uint16_t data) {
 	CanMessage msg;
@@ -255,14 +241,19 @@ void CanNode_sendData_uint16(const CanNode* node, uint16_t data) {
 }
 
 /**
- * \param node pointer to a CanNode
- * \param data data to send
+ * \param[in] node Specifies the node to send data from (basically an id)
+ * \param[in] data Data to send
  *
  * \see CanNode_sendData_int8()
  * \see CanNode_sendData_uint8()
  * \see CanNode_sendData_int16()
  * \see CanNode_sendData_uint16()
  * \see CanNode_sendData_uint32()
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_int16()
  */
 void CanNode_sendData_int32(const CanNode* node, int32_t data) {
 	CanMessage msg;
@@ -281,14 +272,19 @@ void CanNode_sendData_int32(const CanNode* node, int32_t data) {
 }
 
 /**
- * \param node pointer to a CanNode
- * \param data data to send
+ * \param[in] node Specifies the node to send data from (basically an id)
+ * \param[in] data Data to send
  *
  * \see CanNode_sendData_int8()
  * \see CanNode_sendData_uint8()
  * \see CanNode_sendData_int16()
  * \see CanNode_sendData_uint16()
  * \see CanNode_sendData_int32()
+ *
+ * \see CanNode_sendDataArr_int8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_uint8()
+ * \see CanNode_sendDataArr_int16()
  */
 void CanNode_sendData_uint32(const CanNode* node, uint32_t data) {
 	CanMessage msg;
@@ -310,7 +306,7 @@ void CanNode_sendData_uint32(const CanNode* node, uint32_t data) {
  * Sends an array of data over the CANBus.
  * Maximum size for the aray is 7 bytes.
  *
- * \param node Pointer to a CanNode
+ * \param node Node to send data from (basically an id)
  * \param data An array of data
  * \param len  Length of the data to be sent. Maximum length of 7
  *
@@ -319,6 +315,13 @@ void CanNode_sendData_uint32(const CanNode* node, uint32_t data) {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  * \see CanNode_sendDataArr_uint16()
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_int32()
+ * \see CanNode_sendData_uint32()
  */
 CanState CanNode_sendDataArr_int8(const CanNode* node, int8_t* data, uint8_t len) {
 	CanMessage msg;
@@ -355,6 +358,13 @@ CanState CanNode_sendDataArr_int8(const CanNode* node, int8_t* data, uint8_t len
  * \see CanNode_sendDataArr_int8()
  * \see CanNode_sendDataArr_int16()
  * \see CanNode_sendDataArr_uint16()
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_int32()
+ * \see CanNode_sendData_uint32()
  */
 CanState CanNode_sendDataArr_uint8(const CanNode* node, uint8_t* data, uint8_t len) {
 	CanMessage msg;
@@ -391,6 +401,13 @@ CanState CanNode_sendDataArr_uint8(const CanNode* node, uint8_t* data, uint8_t l
  * \see CanNode_sendDataArr_int8()
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_uint16()
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_int32()
+ * \see CanNode_sendData_uint32()
  */
 CanState CanNode_sendDataArr_int16(const CanNode* node, int16_t* data, uint8_t len) {
 	CanMessage msg;
@@ -428,6 +445,13 @@ CanState CanNode_sendDataArr_int16(const CanNode* node, int16_t* data, uint8_t l
  * \see CanNode_sendDataArr_int8()
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
+ *
+ * \see CanNode_sendData_int8()
+ * \see CanNode_sendData_uint8()
+ * \see CanNode_sendData_int16()
+ * \see CanNode_sendData_uint16()
+ * \see CanNode_sendData_int32()
+ * \see CanNode_sendData_uint32()
  */
 CanState CanNode_sendDataArr_uint16(const CanNode* node, uint16_t* data, uint8_t len) {
 	CanMessage msg;
@@ -452,6 +476,37 @@ CanState CanNode_sendDataArr_uint16(const CanNode* node, uint16_t* data, uint8_t
 	return DATA_OK;
 }
 
+/**
+ * Interpert a CanMessage as a signed 8 bit integer (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code - example uses uint16 function but still holds for any type
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint16_t data;
+ *  if(CanNode_getData_uint16(msg, &data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_int32()
+ * \see CanNode_getData_uint32()
+ */
 CanState CanNode_getData_int8(const CanMessage* msg, int8_t* data) {
 
 	if(msg == NULL){
@@ -472,6 +527,37 @@ CanState CanNode_getData_int8(const CanMessage* msg, int8_t* data) {
 	return DATA_OK;
 }
 
+/**
+ * Interpert a CanMessage as a unsigned 8 bit integer (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code - example uses uint16 function but still holds for any type
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint16_t data;
+ *  if(CanNode_getData_uint16(msg, &data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_int32()
+ * \see CanNode_getData_uint32()
+ */
 CanState CanNode_getData_uint8(const CanMessage* msg, uint8_t* data) {
 
 	if(msg == NULL){
@@ -492,6 +578,36 @@ CanState CanNode_getData_uint8(const CanMessage* msg, uint8_t* data) {
 	return DATA_OK;
 }
 
+/**
+ * Interpert a CanMessage as a signed 16 bit integer (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code - example uses uint16 function but still holds for any type
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint16_t data;
+ *  if(CanNode_getData_uint16(msg, &data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_int32()
+ * \see CanNode_getData_uint32()
+ */
 CanState CanNode_getData_int16(const CanMessage* msg, int16_t* data) {
 
 	if(msg == NULL){
@@ -513,6 +629,36 @@ CanState CanNode_getData_int16(const CanMessage* msg, int16_t* data) {
 	return DATA_OK;
 }
 
+/**
+ * Interpert a CanMessage as a unsigned 16 bit integer (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code - example uses uint16 function but still holds for any type
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint16_t data;
+ *  if(CanNode_getData_uint16(msg, &data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_int32()
+ * \see CanNode_getData_uint32()
+ */
 CanState CanNode_getData_uint16(const CanMessage* msg, uint16_t* data) {
 
 	if(msg == NULL){
@@ -535,16 +681,362 @@ CanState CanNode_getData_uint16(const CanMessage* msg, uint16_t* data) {
 }
 
 /**
+ * Interpert a CanMessage as a signed 32 bit integer (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code - example uses uint16 function but still holds for any type
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint16_t data;
+ *  if(CanNode_getData_uint16(msg, &data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_uint32()
+ */
+CanState CanNode_getData_int32(const CanMessage* msg, int32_t* data) {
+
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_INT32 ||  //not right type
+	    msg->len != 5                    ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){  //not data
+
+		return INVALID_TYPE;
+	}
+
+	//data
+	*data  = (uint32_t)  msg->data[1];
+	*data |= (uint32_t) (msg->data[2] <<  8);
+	*data |= (uint32_t) (msg->data[3] << 16);
+	*data |= (uint32_t) (msg->data[4] << 24);
+
+	return DATA_OK;
+}
+
+/**
+ * Interpert a CanMessage as a signed 32 bit integer (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code - example uses uint16 function but still holds for any type
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint16_t data;
+ *  if(CanNode_getData_uint16(msg, &data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_int32()
+ */
+CanState CanNode_getData_uint32(const CanMessage* msg, uint32_t* data) {
+
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_UINT32 ||  //not right type
+	    msg->len != 5                    ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){  //not data
+
+		return INVALID_TYPE;
+	}
+
+	//data
+	*data  = (uint32_t)  msg->data[1];
+	*data |= (uint32_t) (msg->data[2] <<  8);
+	*data |= (uint32_t) (msg->data[3] << 16);
+	*data |= (uint32_t) (msg->data[4] << 24);
+
+	return DATA_OK;
+}
+
+/**
+ * Interpert a CanMessage as a signed 8 bit array (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint8_t data[7];
+ *  if(CanNode_getDataArr_uint8(msg, data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ * \param len[out] length of the recieved data
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getDataArr_uint8()
+ * \see CanNode_getDataArr_int16()
+ * \see CanNode_getDataArr_uint16()
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_int32()
+ * \see CanNode_getData_uint32()
+ */
+CanState CanNode_getDataArr_int8(const CanMessage* msg, int8_t data[7], uint8_t* len) {
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_INT8   ||  //not right type
+	    msg->len > 1                     ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){  //not data
+
+		return INVALID_TYPE;
+	}
+
+	*len=msg->len-1;
+	//data
+	for(int i=0; i<*len; i++){
+		data[i] = (int8_t)  msg->data[i+1];
+	}
+
+	return DATA_OK;
+}
+
+/**
+ * Interpert a CanMessage as a unsigned 8 bit array (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint8_t data[7];
+ *  if(CanNode_getDataArr_uint8(msg, data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ * \param len[out] length of the recieved data
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getDataArr_int8()
+ * \see CanNode_getDataArr_int16()
+ * \see CanNode_getDataArr_uint16()
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_int32()
+ * \see CanNode_getData_uint32()
+ */
+CanState CanNode_getDataArr_uint8(const CanMessage* msg, uint8_t data[7], uint8_t* len) {
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_UINT8   ||  //not right type
+	    msg->len > 1                     ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){  //not data
+
+		return INVALID_TYPE;
+	}
+
+	*len=msg->len-1;
+	//data
+	for(int i=0; i<*len; i++){
+		data[i] = (uint8_t)  msg->data[i+1];
+	}
+
+	return DATA_OK;
+}
+
+/**
+ * Interpert a CanMessage as a signed 16 bit array (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint16_t data[2];
+ *  if(CanNode_getDataArr_uint16(msg, data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ * \param len[out] length of the recieved data
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getDataArr_int8()
+ * \see CanNode_getDataArr_uint8()
+ * \see CanNode_getDataArr_uint16()
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_int32()
+ * \see CanNode_getData_uint32()
+ */
+CanState CanNode_getDataArr_int16(const CanMessage* msg, int16_t data[2], uint8_t* len) {
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_INT16  ||  //not right type
+	    msg->len > 3                     ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){  //not data
+
+		return INVALID_TYPE;
+	}
+
+	*len=msg->len-1;
+	//data
+	for(int i=0; i<*len; i+=2){
+		data[i]  = (int16_t)   msg->data[i+1];
+		data[i] |= (int16_t)  (msg->data[i+2] << 8);
+	}
+
+	// b/c 16 bit ints are twice as long as 8 bit ones
+	*len /= 2;
+	return DATA_OK;
+}
+
+/**
+ * Interpert a CanMessage as a unsigned 16 bit array (will return error if incorrect)
+ *
+ * This function is intended to be used in the handler functions
+ * (see CanNode_addFilter()) for extracting useful data from recieved messages.
+ *
+ * Example code
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * void nodeHandler(CanMessage* msg) {
+ *  uint16_t data[2];
+ *  if(CanNode_getDataArr_uint16(msg, data)==DATA_OK){
+ *      //do something cool with the data like flash some lights
+ *  }
+ *  //the data is stored in data
+ * ~~~~~~~~~~~~
+ *
+ * \param msg[in] Message recieved from someone else, should contain a int8
+ * \param data[out] Place for the data extracted from the msg will be stored.
+ * \param len[out] length of the recieved data
+ *
+ * \returns The function returns \ref DATA_ERROR if the message is null,
+ * \ref INVALID_TYPE if the message doesn't contain the same type as the function,
+ * or \ref DATA_OK if the function succeeded.
+ *
+ * \see CanNode_getDataArr_int8()
+ * \see CanNode_getDataArr_uint8()
+ * \see CanNode_getDataArr_int16()
+ *
+ * \see CanNode_getData_int8()
+ * \see CanNode_getData_uint8()
+ * \see CanNode_getData_int16()
+ * \see CanNode_getData_uint16()
+ * \see CanNode_getData_int32()
+ * \see CanNode_getData_uint32()
+ */
+CanState CanNode_getDataArr_uint16(const CanMessage* msg, uint16_t data[2], uint8_t* len) {
+	if(msg == NULL){
+		return DATA_ERROR;
+	}
+
+	//check configuration byte
+	if((msg->data[0] >> 5) != CAN_UINT16 || //not right type
+	    msg->len > 3                     ||  //not right length
+	   (msg->data[0] & 0x1F) != CAN_DATA ){  //not data
+
+		return INVALID_TYPE;
+	}
+
+	*len=msg->len-1;
+	//data
+	for(int i=0; i<*len; i+=2){
+		data[i]  = (uint16_t)   msg->data[i+1];
+		data[i] |= (uint16_t)  (msg->data[i+2] << 8);
+	}
+
+	// b/c 16 bit ints are twice as long as 8 bit ones
+	*len /= 2;
+	return DATA_OK;
+}
+
+/**
  * Function that should be called from within the main loop. It calls handler
- * functions for each stored node. Because of the unknown length of the handler
+ * functions for each stored node.
+ *
+ * Because of the unknown length of the handler
  * functions this function call could take a very long time. In order to keep
  * this function call to take a reasonable ammount of time, be sure to make
  * handler functions short. If that is impossible it is recommeded to use
  * interrupts for time-sensative components.
  *
- * This function will call an intrinsic handler if the message has the id
- * of one of the stored nodes and the calling node is not sending a request
- * frame. 
+ * This function will call an intrinsic handler (CanNode_nodeHandler())
+ * if the message has the id of one of the stored nodes and the calling node
+ * is not sending a request frame.
  */
 void CanNode_checkForMessages() {
 	//pc code should check if a new message is avalible
