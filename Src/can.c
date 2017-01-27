@@ -7,7 +7,9 @@
 #include "../Inc/can.h"
 
 static CAN_HandleTypeDef hcan;
-static uint32_t prescaler;
+static uint16_t prescaler;
+static uint8_t bs1;
+static uint8_t bs2;
 static CanState bus_state;
 static uint8_t num_msg;
 
@@ -37,9 +39,9 @@ void can_enable(void) {
 		while ((CAN->MSR & CAN_MSR_INAK) != CAN_MSR_INAK);
 		//Exit sleep mode
 		CAN->MCR &= ~CAN_MCR_SLEEP;
-		// Setup timing: BS1 = 4 time quanta (3+1), BS2 = 3 time quanta (2+1).
+		// Setup timing: BS1 and BS2 are set in can_set_bitrate().
 		// The prescalar is set to whatever it was set to from can_set_bitrate()
-		CAN->BTR =  2 << 20 | 3 << 16 | (prescaler-1);
+		CAN->BTR =  bs2 << 20 | bs1 << 16 | prescaler;
 
 		CAN->MCR &= ~CAN_MCR_INRQ;/* Leave init mode */
 		/* Wait the init mode leaving */
@@ -54,33 +56,53 @@ void can_enable(void) {
 }
 
 void can_set_bitrate(canBitrate bitrate) {
+	//all these values were calculated from the equation given in the reference manual for
+	//finding the baudrate. They are calculated from an LibreOffice Calc spreadsheet for a 16MHZ clock
 	switch(bitrate) {
 		case CAN_BITRATE_10K:
-			prescaler = 600;
+			prescaler = 159;
+			bs1=3;
+			bs2=4;
 			break;
 		case CAN_BITRATE_20K:
-			prescaler = 300;
+			prescaler = 99;
+			bs1=2;
+			bs2=3;
 			break;
 		case CAN_BITRATE_50K:
-			prescaler = 120;
+			prescaler = 31;
+			bs1=4;
+			bs2=3;
 			break;
 		case CAN_BITRATE_100K:
-			prescaler = 60;
+			prescaler = 19;
+			bs1=3;
+			bs2=2;
 			break;
 		case CAN_BITRATE_125K:
-			prescaler = 48;
+			prescaler = 7;
+			bs1=7;
+			bs2=6;
 			break;
 		case CAN_BITRATE_250K:
-			prescaler = 24;
+			prescaler = 7;
+			bs1=1;
+			bs2=4;
 			break;
 		case CAN_BITRATE_500K:
-			prescaler = 12;
+			prescaler = 1;
+			bs1=7;
+			bs2=6;
 			break;
 		case CAN_BITRATE_750K:
-			prescaler = 8;
+			prescaler = 2;
+			bs1=2;
+			bs2=2;
 			break;
 		case CAN_BITRATE_1000K:
-			prescaler = 6;
+			prescaler = 1;
+			bs1=2;
+			bs2=3;
 			break;
 	}
 }
