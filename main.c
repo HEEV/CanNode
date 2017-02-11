@@ -29,6 +29,7 @@ void MX_ADC_Init(void);
 /* Private function prototypes -----------------------------------------------*/
 void countRTR(CanMessage* data);
 void timeRTR(CanMessage* data);
+void pitotRTR(CanMessage* data);
 
 /// Struct for initilizing ADC
 ADC_HandleTypeDef hadc;
@@ -36,6 +37,8 @@ ADC_HandleTypeDef hadc;
 CanNode* wheelCountNode;
 /// Struct for transmitting the wheel revolution time
 CanNode* wheelTimeNode;
+/// Struct for transmitting the pitot tube voltage (in mili-volts)
+CanNode* pitotNode;
 
 ///varible for wheel RPS, modified by a ISR
 volatile uint8_t  wheelCount;
@@ -43,6 +46,9 @@ volatile uint8_t  wheelCount;
 volatile uint32_t wheelTime;
 /// Varible used to reset wheelTime if vehicle is stopped
 volatile uint32_t wheelStartTime;
+// Varible used to hold the pitot voltage in mv
+uint16_t pitotVoltage;
+
 /// Timeout for reseting wheelTime (~5s without pulse)
 #define WHEEL_TIMEOUT 5000
 /// Make the time as long as we can to indicate a stopped wheel
@@ -50,19 +56,25 @@ volatile uint32_t wheelStartTime;
 
 ///global flag (set in \ref Src/usb_cdc_if.c) for whether USB is connected
 volatile uint8_t USBConnected;
+uint16_t pitotVoltage;
 
 int main(void) {
 	//setup globals
 	wheelCount=0;
 	wheelTime=WHEEL_STOPPED;
+	pitotVoltage=0;
 	USBConnected = false;
 
 	//local varibles
-	uint16_t adcVal;
 	//state varible for switching between transmitting RPS, time, and adc value
 	uint8_t count_time_adc=0;
 	float voltage;
-	uint16_t miliVoltage;
+	uint16_t switchState=0;
+	uint16_t buff_len = 50;
+	uint8_t buff[50];
+	uint16_t data;
+	uint16_t adcVal;
+
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
 	HAL_Init();
 	// Configure the system clock
@@ -77,10 +89,9 @@ int main(void) {
 	//setup CAN, ID's, and gives each an RTR callback
 	wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
 	wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
+	pitotNode = CanNode_init(PITOT, pitotRTR, true);
 
 	while (1) {
-		//make sure we don't do the same thing twice
-
 		//check if there is a message necessary for CanNode functionality
 		CanNode_checkForMessages();
 
@@ -95,8 +106,15 @@ int main(void) {
 			HAL_ADC_PollForConversion(&hadc, 5);
 			adcVal = HAL_ADC_GetValue(&hadc);
 
+			//do some heavy math
+			voltage = adcVal/4096.0; //make the adv value something between 0 and 1
+			voltage *= 3600; //multiply by the value necessary to convert to 0-3.6V signal
+			pitotVoltage = (uint16_t) voltage; //put into an integer number
+
 			//send ammount of time per revolution
 			CanNode_sendData_uint32(wheelTimeNode, wheelTime);
+			//send the pitot voltage
+			CanNode_sendData_uint16(pitotNode, pitotVoltage);
 
 			// give information over USB, each message is sent every
 			// 1500ms.
@@ -119,12 +137,7 @@ int main(void) {
 					count_time_adc=2;
 				}
 				else {
-					//do some heavy math
-					voltage = adcVal/4096.0; //make the adv value something between 0 and 1
-					voltage *= 3300; //convert to a voltage value
-					//voltage *= 2.0/1.3; //inverse of the voltage divieder
-					miliVoltage = (uint16_t) voltage;
-					itoa(miliVoltage, buff, 10);
+					itoa(pitotVoltage, buff, 10);
 					//send a break between data sets
 					strcat(buff, "\n\r");
 					count_time_adc=0;
@@ -151,6 +164,7 @@ int main(void) {
 			//blink heartbeat LED
 			HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
 
+			//make sure we don't run this code on the next loop
 			HAL_Delay(1);
 		}
 	}
@@ -164,6 +178,9 @@ void countRTR(CanMessage* data){
 ///RTR handler for the wheel revolution time id
 void timeRTR(CanMessage* data){
 	CanNode_sendData_uint32(wheelTimeNode, wheelTime);
+}
+void pitotRTR(CanMessage* data){
+	CanNode_sendData_uint16(pitotNode, pitotVoltage);
 }
 
 ///callback for pin6 (IO1) interrupt
