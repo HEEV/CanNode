@@ -61,10 +61,10 @@ int main(void) {
 	uint16_t adcVal;
 	//state varible for switching between transmitting RPS, time, and adc value
 	uint8_t count_time_adc=0;
-
+	float voltage;
+	uint16_t miliVoltage;
 	// Reset of all peripherals, Initializes the Flash interface and the Systick.
 	HAL_Init();
-
 	// Configure the system clock
 	SystemClock_Config();
 	// Initialize all configured peripherals
@@ -72,6 +72,7 @@ int main(void) {
 	MX_ADC_Init();
 	MX_USB_DEVICE_Init();
 
+	HAL_Delay(100);
 
 	//setup CAN, ID's, and gives each an RTR callback
 	wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
@@ -79,7 +80,6 @@ int main(void) {
 
 	while (1) {
 		//make sure we don't do the same thing twice
-		HAL_Delay(1);
 
 		//check if there is a message necessary for CanNode functionality
 		CanNode_checkForMessages();
@@ -119,7 +119,12 @@ int main(void) {
 					count_time_adc=2;
 				}
 				else {
-					itoa(adcVal, buff, 10);
+					//do some heavy math
+					voltage = adcVal/4096.0; //make the adv value something between 0 and 1
+					voltage *= 3300; //convert to a voltage value
+					//voltage *= 2.0/1.3; //inverse of the voltage divieder
+					miliVoltage = (uint16_t) voltage;
+					itoa(miliVoltage, buff, 10);
 					//send a break between data sets
 					strcat(buff, "\n\r");
 					count_time_adc=0;
@@ -146,6 +151,7 @@ int main(void) {
 			//blink heartbeat LED
 			HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
 
+			HAL_Delay(1);
 		}
 	}
 }
