@@ -67,10 +67,10 @@
 
 #define USBD_VID        			    0xad50
 #define USBD_LANGID_STRING		        1033
-#define USBD_MANUFACTURER_STRING	    "Cedarville University"
+#define USBD_MANUFACTURER_STRING	    "Cedarville"
 #define USBD_PID_FS			            0x60c4
 #define USBD_PRODUCT_STRING_FS		    "CanSensor"
-#define USBD_SERIALNUMBER_STRING_FS     "00000000001A"
+#define USBD_SERIALNUMBER_STRING_FS     "001"
 #define USBD_CONFIGURATION_STRING_FS    "CDC Config"
 #define USBD_INTERFACE_STRING_FS	"CDC Interface"
 
