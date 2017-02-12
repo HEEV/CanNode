@@ -9,6 +9,7 @@
  */
 
 #include <stdint.h>
+#include <limits.h>
 #include <stm32f0xx_hal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -52,8 +53,7 @@ uint16_t pitotVoltage;
 /// Timeout for reseting wheelTime (~5s without pulse)
 #define WHEEL_TIMEOUT 5000
 /// Make the time as long as we can to indicate a stopped wheel
-#define WHEEL_STOPPED 0xFFFFFF
-
+#define WHEEL_STOPPED INT_MAX
 ///global flag (set in \ref Src/usb_cdc_if.c) for whether USB is connected
 volatile uint8_t USBConnected;
 uint16_t pitotVoltage;
