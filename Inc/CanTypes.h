@@ -73,7 +73,7 @@ typedef enum {
 	WHEEL_TIME  = 1154, ///< Give the time taken for the last wheel revolution
 	                    ///< time is in mili-seconds.
 
-	LED			= 1100, ///< array of 4 uint8 RGBA
+	LED         = 1100, ///< array of 4 uint8 RGBA
 } CanNodeType;
  
 /**
