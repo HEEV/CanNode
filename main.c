@@ -53,116 +53,112 @@ uint16_t pitotVoltage;
 /// Timeout for reseting wheelTime (~5s without pulse)
 #define WHEEL_TIMEOUT 5000
 /// Make the time as long as we can to indicate a stopped wheel
-#define WHEEL_STOPPED INT_MAX
+#define WHEEL_STOPPED 0xFFFFFFFF
 ///global flag (set in \ref Src/usb_cdc_if.c) for whether USB is connected
 volatile uint8_t USBConnected;
 uint16_t pitotVoltage;
 
 int main(void) {
-//setup globals
-wheelCount=0;
-wheelTime=WHEEL_STOPPED;
-pitotVoltage=0;
-USBConnected = false;
+    //setup globals
+    wheelCount=0;
+    wheelTime=WHEEL_STOPPED;
+    pitotVoltage=0;
+    USBConnected = false;
 
-//local varibles
-//state varible for switching between transmitting RPS, time, and adc value
-uint8_t count_time_adc=0;
-float voltage;
-uint16_t adcVal;
+    //local varibles
+    float voltage;
+    uint16_t adcVal;
 
-// Reset of all peripherals, Initializes the Flash interface and the Systick.
-HAL_Init();
-// Configure the system clock
-SystemClock_Config();
-// Initialize all configured peripherals
-MX_GPIO_Init();
-MX_ADC_Init();
-MX_USB_DEVICE_Init();
+    // Reset of all peripherals, Initializes the Flash interface and the Systick.
+    HAL_Init();
+    // Configure the system clock
+    SystemClock_Config();
+    // Initialize all configured peripherals
+    MX_GPIO_Init();
+    MX_ADC_Init();
+    MX_USB_DEVICE_Init();
 
-HAL_Delay(100);
+    HAL_Delay(100);
 
-//setup CAN, ID's, and gives each an RTR callback
-wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
-wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
-pitotNode = CanNode_init(PITOT, pitotRTR, true);
+    //setup CAN, ID's, and gives each an RTR callback
+    wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
+    wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
+    pitotNode = CanNode_init(PITOT, pitotRTR, true);
 
-while (1) {
-    //check if there is a message necessary for CanNode functionality
-    CanNode_checkForMessages();
+    while (1) {
+        //check if there is a message necessary for CanNode functionality
+        CanNode_checkForMessages();
 
-    //get the current time
-    uint32_t time = HAL_GetTick();
+        //get the current time
+        uint32_t time = HAL_GetTick();
 
-    //stuff to do every half second
-    if(time % 100 == 0){
+        //stuff to do every half second
+        if(time % 100 == 0){
 
-        //read ADC value
-        HAL_ADC_Start(&hadc);
-        HAL_ADC_PollForConversion(&hadc, 5);
-        adcVal = HAL_ADC_GetValue(&hadc);
+            //read ADC value
+            HAL_ADC_Start(&hadc);
+            HAL_ADC_PollForConversion(&hadc, 5);
+            adcVal = HAL_ADC_GetValue(&hadc);
 
-        //do some heavy math
-        voltage = adcVal/4096.0; //make the adv value something between 0 and 1
-        voltage *= 3600; //multiply by the value necessary to convert to 0-3.6V signal
-        pitotVoltage = (uint16_t) voltage; //put into an integer number
+            //do some heavy math
+            voltage = adcVal/4096.0; //make the adv value something between 0 and 1
+            voltage *= 3600; //multiply by the value necessary to convert to 0-3.6V signal
+            pitotVoltage = (uint16_t) voltage; //put into an integer number
 
-        //send ammount of time per revolution
-        CanNode_sendData_uint32(wheelTimeNode, wheelTime);
-        //send the pitot voltage
-        CanNode_sendData_uint16(pitotNode, pitotVoltage);
+            //send ammount of time per revolution
+            CanNode_sendData_uint32(wheelTimeNode, wheelTime);
+            //send the pitot voltage
+            CanNode_sendData_uint16(pitotNode, pitotVoltage);
 
-        //We have sent the latest data, set to invalid data
-        wheelTime=WHEEL_STOPPED;
+            //We have sent the latest data, set to invalid data
+            wheelTime=WHEEL_STOPPED;
+        }
+        //do every 499ms to get at the wheelTime varible before it is reset
+        if(USBConnected && time % 499 == 0){
+
+            //NOTE: the maximum buffer length is set in the
+            //USB code to be 64 bytes.
+            char buff[50];
+
+            //setup the buffer with the required information
+            //The data is sent in a CSV format like the following
+            // RPS, Time per revolution in ms, ADC value
+            itoa(wheelCount, buff, 10);
+            strcat(buff, ", ");
+            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
+
+            itoa(wheelTime, buff, 10);
+            strcat(buff, ", ");
+            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
+
+            itoa(pitotVoltage, buff, 10);
+            //send a break between data sets
+            strcat(buff, "\n\r");
+
+            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
+
+        }
+        //stuff to do every second
+        if(time % 1000 == 0){
+            //send RPS data
+            CanNode_sendData_uint8(wheelCountNode, wheelCount);
+
+            //reset RPS varible
+            wheelCount=0;
+
+            //blink heartbeat LED
+            HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+
+            //make sure we don't run this code on the next loop
+            HAL_Delay(1);
+        }
+        //every 30 seconds reset the CAN hardware
+        if(time % 33333 == 0){
+            can_init();
+            can_set_bitrate(CAN_BITRATE_500K);
+            can_enable();
+        }
     }
-    //499 to get at the wheelTime varible before it is reset
-    if(USBConnected && time % 499 == 0){
-
-        //NOTE: the maximum buffer length is set in the
-        //USB code to be 64 bytes.
-        char buff[50];
-
-        //setup the buffer with the required information
-        //The data is sent in a CSV format like the following
-        // RPS, Time per revolution in ms, ADC value
-        itoa(wheelCount, buff, 10);
-        strcat(buff, ", ");
-        CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
-
-        itoa(wheelTime, buff, 10);
-        strcat(buff, ", ");
-        count_time_adc=2;
-        CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
-
-        itoa(pitotVoltage, buff, 10);
-        //send a break between data sets
-        strcat(buff, "\n\r");
-        count_time_adc=0;
-
-        CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
-
-    }
-    //stuff to do every second
-    if(time % 1000 == 0){
-        //send RPS data
-        CanNode_sendData_uint8(wheelCountNode, wheelCount);
-
-        //reset RPS varible
-        wheelCount=0;
-
-        //blink heartbeat LED
-        HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
-
-        //make sure we don't run this code on the next loop
-        HAL_Delay(1);
-    }
-    //every 30 seconds reset the CAN hardware
-    if(time % 33333 == 0){
-        can_init();
-        can_set_bitrate(CAN_BITRATE_500K);
-        can_enable();
-    }
-}
 }
 
 ///RTR handler for the RPS id
