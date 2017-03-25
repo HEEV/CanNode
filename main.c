@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <limits.h>
+#include <stm32f0xx_hal_conf.h>
 #include <stm32f0xx_hal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,47 +27,25 @@
 void SystemClock_Config(void);
 void MX_GPIO_Init(void);
 void MX_ADC_Init(void);
+void MX_TIM3_Init(void);
 
 /* Private function prototypes -----------------------------------------------*/
-void countRTR(CanMessage* data);
-void timeRTR(CanMessage* data);
-void pitotRTR(CanMessage* data);
+void throttleRTR(CanMessage* data);
 
 /// Struct for initilizing ADC
 ADC_HandleTypeDef hadc;
-/// Struct for transmitting the wheel RPS
-CanNode* wheelCountNode;
-/// Struct for transmitting the wheel revolution time
-CanNode* wheelTimeNode;
-/// Struct for transmitting the pitot tube voltage (in mili-volts)
-CanNode* pitotNode;
 
-///varible for wheel RPS, modified by a ISR
-volatile uint8_t  wheelCount;
-/// Varible for wheel revolution time, modified by a ISR
-volatile uint32_t wheelTime;
-/// Varible used to reset wheelTime if vehicle is stopped
-volatile uint32_t wheelStartTime;
-// Varible used to hold the pitot voltage in mv
-uint16_t pitotVoltage;
+TIM_HandleTypeDef htim3;
+/// Struct for recieving throttle values
+CanNode* throttle;
 
-/// Timeout for reseting wheelTime (~5s without pulse)
-#define WHEEL_TIMEOUT 5000
-/// Make the time as long as we can to indicate a stopped wheel
-#define WHEEL_STOPPED 0xFFFFFFFF
 ///global flag (set in \ref Src/usb_cdc_if.c) for whether USB is connected
 volatile uint8_t USBConnected;
 uint16_t pitotVoltage;
 
 int main(void) {
-    //setup globals
-    wheelCount=0;
-    wheelTime=WHEEL_STOPPED;
-    pitotVoltage=0;
     USBConnected = false;
 
-    //local varibles
-    float voltage;
     uint16_t adcVal;
 
     // Reset of all peripherals, Initializes the Flash interface and the Systick.
@@ -76,136 +55,43 @@ int main(void) {
     // Initialize all configured peripherals
     MX_GPIO_Init();
     MX_ADC_Init();
+    MX_TIM3_Init();
     MX_USB_DEVICE_Init();
 
     HAL_Delay(100);
 
     //setup CAN, ID's, and gives each an RTR callback
-    wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
-    wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
-    pitotNode = CanNode_init(PITOT, pitotRTR, true);
+    //throttle = CanNode_init(THROTTLE, throttleRTR, true);
+    //CanNode_addFilter();
+    //
+
+    HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_ALL);
 
     while (1) {
         //check if there is a message necessary for CanNode functionality
-        CanNode_checkForMessages();
+        //CanNode_checkForMessages();
 
         //get the current time
-        uint32_t time = HAL_GetTick();
+        //uint32_t time = HAL_GetTick();
 
-        //stuff to do every half second
-        if(time % 100 == 0){
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 1500);
 
-            //read ADC value
-            HAL_ADC_Start(&hadc);
-            HAL_ADC_PollForConversion(&hadc, 5);
-            adcVal = HAL_ADC_GetValue(&hadc);
+        HAL_GPIO_TogglePin(GPIOB, LED1_Pin);
 
-            //do some heavy math
-            voltage = adcVal/4096.0; //make the adv value something between 0 and 1
-            voltage *= 3600; //multiply by the value necessary to convert to 0-3.6V signal
-            pitotVoltage = (uint16_t) voltage; //put into an integer number
+        HAL_Delay(500);
 
-            //send ammount of time per revolution
-            CanNode_sendData_uint32(wheelTimeNode, wheelTime);
-            //send the pitot voltage
-            CanNode_sendData_uint16(pitotNode, pitotVoltage);
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 1000);
 
-            //We have sent the latest data, set to invalid data
-            wheelTime=WHEEL_STOPPED;
-        }
-        //do every 499ms to get at the wheelTime varible before it is reset
-        if(USBConnected && time % 499 == 0){
+        HAL_Delay(500);
 
-            //NOTE: the maximum buffer length is set in the
-            //USB code to be 64 bytes.
-            char buff[50];
-
-            //setup the buffer with the required information
-            //The data is sent in a CSV format like the following
-            // RPS, Time per revolution in ms, ADC value
-            itoa(wheelCount, buff, 10);
-            strcat(buff, ", ");
-            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
-
-            itoa(wheelTime, buff, 10);
-            strcat(buff, ", ");
-            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
-
-            itoa(pitotVoltage, buff, 10);
-            //send a break between data sets
-            strcat(buff, "\n\r");
-
-            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
-
-        }
-        //stuff to do every second
-        if(time % 1000 == 0){
-            //send RPS data
-            CanNode_sendData_uint8(wheelCountNode, wheelCount);
-
-            //reset RPS varible
-            wheelCount=0;
-
-            //blink heartbeat LED
-            HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
-
-            //make sure we don't run this code on the next loop
-            HAL_Delay(1);
-        }
-        //every 30 seconds reset the CAN hardware
-        if(time % 33333 == 0){
-            can_init();
-            can_set_bitrate(CAN_BITRATE_500K);
-            can_enable();
-        }
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 2000);
     }
+
 }
 
 ///RTR handler for the RPS id
-void countRTR(CanMessage* data){
-    CanNode_sendData_uint8(wheelCountNode, wheelCount);
-}
-
-///RTR handler for the wheel revolution time id
-void timeRTR(CanMessage* data){
-    CanNode_sendData_uint32(wheelTimeNode, wheelTime);
-}
-void pitotRTR(CanMessage* data){
-    CanNode_sendData_uint16(pitotNode, pitotVoltage);
-}
-
-///callback for pin6 (IO1) interrupt
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-    //when was our last pulse
-    static uint32_t startTime=0;
-    //what is our current time
-    uint32_t newTime = HAL_GetTick();
-    //how long did this revolution take
-    uint32_t tempTime = newTime - startTime;
-
-    //if the supposed time it takes for the wheel to go around is less than
-    //31/32 of the last time then it is just bounce contact and should be
-    //ignored
-    /*
-    if(tempTime < wheelTime-(wheelTime>>5) ) {
-        return;
-    }
-     */
-
-    /* If the new time is less than 50ms than it was a fluke
-     */
-    if(tempTime < 50){
-        return;
-    }
-
-    //set the new start time
-    startTime = wheelStartTime = newTime;
-
-    wheelTime = tempTime; //Valid pulse, save the value
-    ++wheelCount; //increment the wheel count
-
-    //toggle led
-    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+void throttleRTR(CanMessage* data){
+    //CanNode_sendData_uint8(wheelCountNode, wheelCount);
 }
 
 /** System Clock Configuration
@@ -255,7 +141,7 @@ void SystemClock_Config(void)
 
 /* ADC init function */
 void MX_ADC_Init(void) {
-ADC_ChannelConfTypeDef sConfig;
+    ADC_ChannelConfTypeDef sConfig;
 
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
     */
@@ -282,6 +168,39 @@ ADC_ChannelConfTypeDef sConfig;
     HAL_ADC_ConfigChannel(&hadc, &sConfig);
 }
 
+/* TIM3 init function */
+void MX_TIM3_Init(void)
+{
+
+    TIM_ClockConfigTypeDef sClockSourceConfig;
+    TIM_MasterConfigTypeDef sMasterConfig;
+    TIM_OC_InitTypeDef sConfigOC;
+
+    htim3.Instance = TIM3;
+    htim3.Init.Prescaler = 16;
+    htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+    htim3.Init.Period = 20000;
+    htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+    HAL_TIM_Base_Init(&htim3);
+
+    sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
+    HAL_TIM_ConfigClockSource(&htim3, &sClockSourceConfig);
+
+    HAL_TIM_PWM_Init(&htim3);
+
+    sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+    sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+    HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig);
+
+    sConfigOC.OCMode = TIM_OCMODE_PWM1;
+    sConfigOC.Pulse = 0;
+    sConfigOC.OCPolarity = TIM_OCPOLARITY_HIGH;
+    sConfigOC.OCFastMode = TIM_OCFAST_DISABLE;
+    HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2);
+
+    HAL_TIM_MspPostInit(&htim3);
+
+}
 
 /** Configure pins as
  * Analog
@@ -352,13 +271,13 @@ void MX_GPIO_Init(void) {
 
 
     //configure IO1 as a rising edge interrupt pin
-    GPIO_InitStruct.Pin = IO2_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-    HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
+    //GPIO_InitStruct.Pin = IO2_Pin;
+    //GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+    //GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+    //HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
 
     /* EXTI4_15_IRQn interrupt configuration */
-    HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+    //HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
+    //HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
 
 }
