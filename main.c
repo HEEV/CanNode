@@ -31,6 +31,9 @@ void MX_TIM3_Init(void);
 
 /* Private function prototypes -----------------------------------------------*/
 void throttleRTR(CanMessage* data);
+void newThrottlePos(CanMessage* data);
+
+uint16_t throttleToServo(uint16_t throttlePos);
 
 /// Struct for initilizing ADC
 ADC_HandleTypeDef hadc;
@@ -46,8 +49,6 @@ uint16_t pitotVoltage;
 int main(void) {
     USBConnected = false;
 
-    uint16_t adcVal;
-
     // Reset of all peripherals, Initializes the Flash interface and the Systick.
     HAL_Init();
     // Configure the system clock
@@ -58,33 +59,54 @@ int main(void) {
     MX_TIM3_Init();
     MX_USB_DEVICE_Init();
 
-    HAL_Delay(100);
+    HAL_Delay(50);
 
     //setup CAN, ID's, and gives each an RTR callback
-    //throttle = CanNode_init(THROTTLE, throttleRTR, true);
-    //CanNode_addFilter();
-    //
-
-    HAL_TIM_PWM_Start(&htim3,TIM_CHANNEL_ALL);
+    throttle = CanNode_init(THROT_BODY, throttleRTR, true);
+    //get new throttle position information from the THROTTLE device
+    CanNode_addFilter(throttle, THROTTLE, newThrottlePos);
 
     while (1) {
         //check if there is a message necessary for CanNode functionality
-        //CanNode_checkForMessages();
+        CanNode_checkForMessages();
+
+
+        //read the ADC on IO1
+        HAL_ADC_Start(&hadc);
+        HAL_ADC_PollForConversion(&hadc, 5);
+
+        uint16_t adcVal = HAL_ADC_GetValue(&hadc);
+
+        uint16_t newServoPos = throttleToServo(adcVal);
+
+        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, newServoPos);
 
         //get the current time
-        //uint32_t time = HAL_GetTick();
+        uint32_t time = HAL_GetTick();
 
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 1500);
+        if(time % 500 == 0){
+            char buff[50];
+            HAL_GPIO_TogglePin(GPIOB, LED1_Pin);
 
-        HAL_GPIO_TogglePin(GPIOB, LED1_Pin);
+            if(USBConnected){
+                itoa(adcVal, buff, 10);
+                strcat(buff, ", ");
+                CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
 
-        HAL_Delay(500);
+                itoa(newServoPos, buff, 10);
+                //send a break between data sets
+                strcat(buff, "\n\r");
 
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 1000);
+                CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
+            }
+        }
 
-        HAL_Delay(500);
-
-        __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 2000);
+        //every 30 seconds reset the CAN hardware I don't know why this is necessary
+        if(time % 33333 == 0){
+            can_init();
+            can_set_bitrate(CAN_BITRATE_500K);
+            can_enable();
+        }
     }
 
 }
@@ -92,6 +114,32 @@ int main(void) {
 ///RTR handler for the RPS id
 void throttleRTR(CanMessage* data){
     //CanNode_sendData_uint8(wheelCountNode, wheelCount);
+}
+
+void newThrottlePos(CanMessage* data){
+    uint16_t throttlePos;
+    CanNode_getData_uint16(data, &throttlePos);
+
+    uint16_t newServoPos = throttleToServo(throttlePos);
+
+    __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, newServoPos);
+
+    //toggle red led on message
+    HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+}
+
+uint16_t throttleToServo(uint16_t throttlePos){
+    uint32_t servoTime;
+
+    const uint16_t servoMax = 2000;
+    const uint16_t servoMin = 1000;
+    const uint16_t throttleMax = 4096;
+    const uint16_t throttleMin = 642;
+
+    //change the maximum value of throttlePos to the maximum servo time
+    servoTime = ((servoMax - servoMin)*(throttlePos-throttleMin))/(throttleMax - throttleMin) + servoMin;
+
+    return (uint16_t) servoTime;
 }
 
 /** System Clock Configuration
@@ -177,9 +225,9 @@ void MX_TIM3_Init(void)
     TIM_OC_InitTypeDef sConfigOC;
 
     htim3.Instance = TIM3;
-    htim3.Init.Prescaler = 16;
+    htim3.Init.Prescaler = 16; //divide system clock (16Mhz) by 16
     htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-    htim3.Init.Period = 20000;
+    htim3.Init.Period = 20000; //set frequency to 50hz (divide prescalaed clock by 20000)
     htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
     HAL_TIM_Base_Init(&htim3);
 

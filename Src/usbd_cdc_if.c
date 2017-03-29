@@ -206,10 +206,10 @@ static int8_t CDC_Control_FS  (uint8_t cmd, uint8_t* pbuf, uint16_t length)
 	break;
 
     case CDC_GET_LINE_CODING:
-	pbuf[0] = (uint8_t)(115200);
-	pbuf[1] = (uint8_t)(115200 >> 8);
-	pbuf[2] = (uint8_t)(115200 >> 16);
-	pbuf[3] = (uint8_t)(115200 >> 24);
+	pbuf[0] = (uint8_t)(230400);
+	pbuf[1] = (uint8_t)(230400>> 8);
+	pbuf[2] = (uint8_t)(230400>> 16);
+	pbuf[3] = (uint8_t)(230400>> 24);
 	pbuf[4] = 0; // stop bits (1)
 	pbuf[5] = 0; // parity (none)
 	pbuf[6] = 8; // number of bits (8)
@@ -278,12 +278,14 @@ uint8_t CDC_Transmit_FS(uint8_t* Buf, uint16_t Len)
     /* USER CODE BEGIN 8 */
     uint16_t i;
 
-    for (i=0; i < sizeof(UserTxBufferFS); i++) {
-	UserTxBufferFS[i] = 0;
-    }
 
     for (i=0; i < Len; i++) {
-	UserTxBufferFS[i] = Buf[i];
+	    UserTxBufferFS[i] = Buf[i];
+    }
+
+    //clear all unsused parts of the buffer
+    for (; i < sizeof(UserTxBufferFS); i++) {
+	    UserTxBufferFS[i] = 0;
     }
 
     USBD_CDC_SetTxBuffer(hUsbDevice_0, UserTxBufferFS, Len);

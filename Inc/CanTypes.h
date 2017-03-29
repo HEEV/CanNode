@@ -55,7 +55,8 @@ typedef enum {
 	
 	SWITCH      = 900,  ///< uint8
 	THROTTLE    = 900,  ///< throttle position (uint16)
-	TACT        = 904,
+    THROT_BODY  = 904,  ///< throttle body servo
+	TACT        = 908,
 
 	PRESSURE    = 950,  ///< uint16
 	PITOT       = 950,  ///< Pitot Tube
