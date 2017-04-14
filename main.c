@@ -53,11 +53,11 @@ int main(void) {
     HAL_Init();
     // Configure the system clock
     SystemClock_Config();
+    MX_USB_DEVICE_Init();
     // Initialize all configured peripherals
     MX_GPIO_Init();
     MX_ADC_Init();
     MX_TIM3_Init();
-    MX_USB_DEVICE_Init();
 
     HAL_Delay(50);
 
@@ -69,7 +69,6 @@ int main(void) {
     while (1) {
         //check if there is a message necessary for CanNode functionality
         CanNode_checkForMessages();
-
 
         //read the ADC on IO1
         HAL_ADC_Start(&hadc);
