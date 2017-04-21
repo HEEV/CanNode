@@ -79,6 +79,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     //GPIO_InitStruct.Pull = GPIO_NOPULL;
     //HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
 
+#ifdef STING
     GPIO_InitStruct.Pin = IO1_Pin;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -87,6 +88,7 @@ void HAL_ADC_MspInit(ADC_HandleTypeDef* hadc)
     /* Peripheral interrupt init */
     HAL_NVIC_SetPriority(ADC1_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(ADC1_IRQn);
+#endif
   /* USER CODE BEGIN ADC1_MspInit 1 */
 
   /* USER CODE END ADC1_MspInit 1 */

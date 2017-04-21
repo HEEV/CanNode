@@ -19,6 +19,10 @@
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
 
+//switch betwen Sting and Urbie
+#define URBIE
+//#define STING
+
 #define IO1_ADC ADC_CHANNEL_8
 #define IO2_ADC ADC_CHANNEL_7
 
@@ -73,17 +77,21 @@ int main(void) {
     HAL_Init();
     // Configure the system clock
     SystemClock_Config();
+    MX_USB_DEVICE_Init();
     // Initialize all configured peripherals
     MX_GPIO_Init();
+#ifdef STING
     MX_ADC_Init();
-    MX_USB_DEVICE_Init();
+#endif
 
-    HAL_Delay(100);
+    //HAL_Delay(100);
 
     //setup CAN, ID's, and gives each an RTR callback
     wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
     wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
+#ifdef STING
     pitotNode = CanNode_init(PITOT, pitotRTR, true);
+#endif
 
     while (1) {
         //check if there is a message necessary for CanNode functionality
@@ -93,8 +101,9 @@ int main(void) {
         uint32_t time = HAL_GetTick();
 
         //stuff to do every half second
-        if(time % 100 == 0){
+        if(time % 250 == 0){
 
+#ifdef STING
             //read ADC value
             HAL_ADC_Start(&hadc);
             HAL_ADC_PollForConversion(&hadc, 5);
@@ -105,11 +114,12 @@ int main(void) {
             voltage *= 3600; //multiply by the value necessary to convert to 0-3.6V signal
             pitotVoltage = (uint16_t) voltage; //put into an integer number
 
-            //send ammount of time per revolution
-            CanNode_sendData_uint32(wheelTimeNode, wheelTime);
             //send the pitot voltage
             CanNode_sendData_uint16(pitotNode, pitotVoltage);
+#endif
 
+            //send ammount of time per revolution
+            CanNode_sendData_uint32(wheelTimeNode, wheelTime);
             //We have sent the latest data, set to invalid data
             wheelTime=WHEEL_STOPPED;
         }
@@ -131,6 +141,7 @@ int main(void) {
             strcat(buff, ", ");
             CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
 
+            pitotVoltage = HAL_GPIO_ReadPin(IO1_GPIO_Port, IO1_Pin);
             itoa(pitotVoltage, buff, 10);
             //send a break between data sets
             strcat(buff, "\n\r");
@@ -138,6 +149,7 @@ int main(void) {
             CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
 
         }
+
         //stuff to do every second
         if(time % 1000 == 0){
             //send RPS data
@@ -149,8 +161,6 @@ int main(void) {
             //blink heartbeat LED
             HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
 
-            //make sure we don't run this code on the next loop
-            HAL_Delay(1);
         }
         //every 30 seconds reset the CAN hardware
         if(time % 33333 == 0){
@@ -158,6 +168,8 @@ int main(void) {
             can_set_bitrate(CAN_BITRATE_500K);
             can_enable();
         }
+        //make sure we don't run this code on the next loop
+        HAL_Delay(1);
     }
 }
 
@@ -351,14 +363,28 @@ void MX_GPIO_Init(void) {
     HAL_GPIO_WritePin(GPIOB, LED2_Pin|LED1_Pin, GPIO_PIN_SET);
 
 
+    // Urbie's sensor is an open drain active-low sensor, so it needs a pullup resistor and a
+    // falling edge interrupt. It is on IO Pin 1
+    // Sting's sensor is just a low active switch with a filter
     //configure IO1 as a rising edge interrupt pin
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
+#ifdef STING
     GPIO_InitStruct.Pin = IO2_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
     HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
+#else
+    GPIO_InitStruct.Pin = IO1_Pin;
+    HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
+#endif
 
+#ifdef STING
+    //Sting's interrupt is on EXTI 7
     /* EXTI4_15_IRQn interrupt configuration */
     HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
-
+#else
+    //Urbie's interrupt is on EXIT 0
+    HAL_NVIC_SetPriority(EXTI0_1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);
+#endif
 }

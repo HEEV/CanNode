@@ -84,11 +84,21 @@ void EXTI4_15_IRQHandler(void)
 
 	/* USER CODE END EXTI4_15_IRQn 0 */
 	HAL_GPIO_EXTI_IRQHandler(IO2_Pin);
-	/* USER CODE BEGIN EXTI4_15_IRQn 1 */
+    /* USER CODE BEGIN EXTI4_15_IRQn 1 */
 
 	/* USER CODE END EXTI4_15_IRQn 1 */
 }
 
+void EXTI0_1_IRQHandler(void)
+{
+	/* USER CODE BEGIN EXTI4_15_IRQn 0 */
+
+	/* USER CODE END EXTI4_15_IRQn 0 */
+    HAL_GPIO_EXTI_IRQHandler(IO1_Pin);
+    /* USER CODE BEGIN EXTI4_15_IRQn 1 */
+
+	/* USER CODE END EXTI4_15_IRQn 1 */
+}
 extern PCD_HandleTypeDef hpcd_USB_FS;
 
 /**
