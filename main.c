@@ -68,7 +68,7 @@ int main(void) {
 
     while (1) {
         //check if there is a message necessary for CanNode functionality
-        CanNode_checkForMessages();
+        //CanNode_checkForMessages();
 
         //read the ADC on IO1
         HAL_ADC_Start(&hadc);
@@ -106,6 +106,7 @@ int main(void) {
             can_set_bitrate(CAN_BITRATE_500K);
             can_enable();
         }
+        HAL_Delay(1);
     }
 
 }
@@ -130,9 +131,9 @@ void newThrottlePos(CanMessage* data){
 uint16_t throttleToServo(uint16_t throttlePos){
     uint32_t servoTime;
 
-    const uint16_t servoMax = 2000;
-    const uint16_t servoMin = 1000;
-    const uint16_t throttleMax = 4096;
+    const uint16_t servoMax = 1000;
+    const uint16_t servoMin = 1950;
+    const uint16_t throttleMax = 3360;
     const uint16_t throttleMin = 642;
 
     //change the maximum value of throttlePos to the maximum servo time
