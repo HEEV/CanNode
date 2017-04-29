@@ -20,8 +20,8 @@
 #include "usbd_cdc_if.h"
 
 //switch betwen Sting and Urbie
-#define URBIE
-//#define STING
+//#define URBIE
+#define STING
 
 #define IO1_ADC ADC_CHANNEL_8
 #define IO2_ADC ADC_CHANNEL_7
@@ -141,7 +141,8 @@ int main(void) {
             strcat(buff, ", ");
             CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
 
-            pitotVoltage = HAL_GPIO_ReadPin(IO1_GPIO_Port, IO1_Pin);
+            //debug check if pin is changing
+            //pitotVoltage = HAL_GPIO_ReadPin(IO1_GPIO_Port, IO1_Pin);
             itoa(pitotVoltage, buff, 10);
             //send a break between data sets
             strcat(buff, "\n\r");
@@ -189,7 +190,8 @@ void pitotRTR(CanMessage* data){
 ///callback for pin6 (IO1) interrupt
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     //when was our last pulse
-    static uint32_t startTime=0;
+    static uint32_t startTime = 0;
+    static uint8_t oddPulse = 0;
     //what is our current time
     uint32_t newTime = HAL_GetTick();
     //how long did this revolution take
@@ -206,15 +208,36 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
     /* If the new time is less than 50ms than it was a fluke
      */
-    if(tempTime < 50){
+    if(tempTime < 30){
         return;
     }
+
+
+    //if the supposed time it takes for the wheel to go around is less than
+    //3/4 of the last time then it is just bounce contact and should be
+    //ignored
+    //if(tempTime < wheelTime-(wheelTime>>2)) {
+    //    return;
+    //}
 
     //set the new start time
     startTime = wheelStartTime = newTime;
 
     wheelTime = tempTime; //Valid pulse, save the value
-    ++wheelCount; //increment the wheel count
+#ifdef URBIE
+    //multiply wheelTime by two (b/c two magnets per revolution)
+    wheelTime = wheelTime << 1;
+    //urbie has two magnets per wheel only half of pulses are a full revolution
+    if(oddPulse){
+        ++wheelCount; //increment the wheel count
+        oddPulse=0;
+    }
+    else{
+        oddPulse=1;
+    }
+#else
+    ++wheelCount;
+#endif
 
     //toggle led
     HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
@@ -367,12 +390,16 @@ void MX_GPIO_Init(void) {
     // falling edge interrupt. It is on IO Pin 1
     // Sting's sensor is just a low active switch with a filter
     //configure IO1 as a rising edge interrupt pin
-    GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
-    GPIO_InitStruct.Pull = GPIO_PULLUP;
+    //GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    //GPIO_InitStruct.Pull = GPIO_PULLUP;
+
+    //for switch board outside cars
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
 #ifdef STING
     GPIO_InitStruct.Pin = IO2_Pin;
     HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
-#else
+#else if URBIE
     GPIO_InitStruct.Pin = IO1_Pin;
     HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
 #endif
@@ -382,7 +409,7 @@ void MX_GPIO_Init(void) {
     /* EXTI4_15_IRQn interrupt configuration */
     HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
-#else
+#else if URBIE
     //Urbie's interrupt is on EXIT 0
     HAL_NVIC_SetPriority(EXTI0_1_IRQn, 0, 0);
     HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);
