@@ -20,8 +20,8 @@
 #include "usbd_cdc_if.h"
 
 //switch betwen Sting and Urbie
-//#define URBIE
-#define STING
+#define URBIE
+//#define STING
 
 #define IO1_ADC ADC_CHANNEL_8
 #define IO2_ADC ADC_CHANNEL_7
@@ -208,7 +208,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
 
     /* If the new time is less than 50ms than it was a fluke
      */
-    if(tempTime < 30){
+    if(tempTime < 60){
         return;
     }
 
