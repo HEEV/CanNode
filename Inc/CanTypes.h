@@ -12,8 +12,13 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+/**
+ * \addtogroup CanNode_Module CanNode
+ *@{
+ */
+
 #ifndef MAX_NODES
-	/// Maximum number of nodes stored in flash. Can be overwriten by redefinition
+	/// Maximum number of nodes stored internally. Can be overwriten by redefinition
 	#define MAX_NODES 4
 #endif
 
@@ -22,17 +27,15 @@
 	#define NUM_FILTERS 4
 #endif
 
-/// Key to unlokck stm32 flash memory
-#define FLASH_FKEY1 0x45670123
-/// Key to unlokck stm32 flash memory
-#define FLASH_FKEY2 0xCDEF89AB
-
-/// Total length of the name/info string
-#define TOTAL_INFO_LEN 190
 /// Maximum length of a name string for the CanNode_getName()
 #define MAX_NAME_LEN 30
 /// Maximum length of a info string for the CanNode_getInfo()
-#define MAX_INFO_LEN TOTAL_INFO_LEN - MAX_NAME_LEN
+#define MAX_INFO_LEN 90
+
+/**
+ * \defgroup CanNode_Data_Types CanNode Public Data Types
+ *@{
+ */
 
 /**
  * \enum CanNodeType
@@ -72,7 +75,6 @@ typedef enum {
 	                    ///< Number of revolutions in the last second
 	WHEEL_TIME  = 1154, ///< Give the time taken for the last wheel revolution
 	                    ///< time is in mili-seconds.
-
 	LED         = 1100, ///< array of 4 uint8 RGBA
 } CanNodeType;
  
@@ -81,7 +83,8 @@ typedef enum {
  * \brief Defines various avalible bitrates for the CANBus
  *
  */
-typedef enum { CAN_BITRATE_10K,  ///< 10k baud
+typedef enum {
+	CAN_BITRATE_10K,  ///< 10k baud
 	CAN_BITRATE_20K,  ///< 20k baud
 	CAN_BITRATE_50K,  ///< 50k baud
 	CAN_BITRATE_100K, ///< 100k baud
@@ -93,7 +96,7 @@ typedef enum { CAN_BITRATE_10K,  ///< 10k baud
 } canBitrate;
 
 /**
- * \enum CanState 
+ * \enum CanState
  * \brief Defines various errors and states of the CANBus 
  *
  */
@@ -102,7 +105,7 @@ typedef enum {
 	DATA_OK = 0,   ///< Good state
 	DATA_ERROR,    ///< Catch all data error
 	NO_DATA,       ///< No data availible on the bus
-	INVALID_TYPE,  ///< The bus has data but of a different type then asked for
+	INVALID_TYPE,  ///< The bus has data, but the wrong \ref getData function was used
 	DATA_OVERFLOW, ///< Too much data was was put in the message
 	BUS_BUSY,      ///< The bus is working with someone else right now
 	BUS_OFF        ///< The bus is off - call can_init() and can_enable()
@@ -184,7 +187,7 @@ typedef void (*filterHandler)(CanMessage* data);
  * \brief Stucture for holding information about a CanNode
  *
  * Members should never be accessed directly, instead use functions in
- * CanNode.h
+ * the [CanNode library](\ref CanNode_Functions).
  *
  * \see CanNode.h
  * \see CanNode_init
@@ -201,8 +204,11 @@ typedef struct {
 	filterHandler handle[NUM_FILTERS]; ///< array of function pointers to call
 	                                   ///< when a id in filters is found
 	CanNodeType sensorType;            ///< Type of sensor
-	char nodeNameBuff[MAX_NAME_LEN];
-	char nodeInfoBuff[MAX_INFO_LEN]; ///< (points to an address in flash)
+	//char nodeNameBuff[MAX_NAME_LEN];
+	//char nodeInfoBuff[MAX_INFO_LEN]; ///< (points to an address in flash)
 } CanNode;
 
+//@}
+
+//@}
 #endif //_CAN_TYPES_H_

@@ -2,5 +2,6 @@
 *.elf
 *.bin
 *.o
+tags
 doc/*
 wiki/*

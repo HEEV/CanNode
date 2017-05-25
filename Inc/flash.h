@@ -36,6 +36,11 @@ typedef enum {
 	FLASH_WRT_ERROR  ///< Write protection error, this section of flash is write protected.
 } FlashError;
 
+/// Key to unlokck stm32 flash memory
+#define FLASH_FKEY1 0x45670123
+/// Key to unlokck stm32 flash memory
+#define FLASH_FKEY2 0xCDEF89AB
+
 /// \brief Unlock flash memory
 void flashUnlock();
 /// \brief Lock flash memory

@@ -9,6 +9,7 @@
  */
 
 #include <stdint.h>
+#include <limits.h>
 #include <stm32f0xx_hal.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,234 +19,322 @@
 #include "usb_device.h"
 #include "usbd_cdc_if.h"
 
-#define IO1_ADC ADC_CHSELR_CHSEL6
-#define IO2_ADC ADC_CHSELR_CHSEL7
-#define IO3_ADC ADC_CHSELR_CHSEL9
+//switch betwen Sting and Urbie
+#define URBIE
+//#define STING
 
-//transmit code or recieve code
-#define RECIEVE
+#define IO1_ADC ADC_CHANNEL_8
+#define IO2_ADC ADC_CHANNEL_7
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void MX_GPIO_Init(void);
-void MX_NVIC_Init(void);
 void MX_ADC_Init(void);
 
 /* Private function prototypes -----------------------------------------------*/
 void countRTR(CanMessage* data);
 void timeRTR(CanMessage* data);
+void pitotRTR(CanMessage* data);
 
+/// Struct for initilizing ADC
 ADC_HandleTypeDef hadc;
-
+/// Struct for transmitting the wheel RPS
 CanNode* wheelCountNode;
+/// Struct for transmitting the wheel revolution time
 CanNode* wheelTimeNode;
+/// Struct for transmitting the pitot tube voltage (in mili-volts)
+CanNode* pitotNode;
+
+///varible for wheel RPS, modified by a ISR
 volatile uint8_t  wheelCount;
+/// Varible for wheel revolution time, modified by a ISR
 volatile uint32_t wheelTime;
+/// Varible used to reset wheelTime if vehicle is stopped
+volatile uint32_t wheelStartTime;
+// Varible used to hold the pitot voltage in mv
+uint16_t pitotVoltage;
+
+/// Timeout for reseting wheelTime (~5s without pulse)
+#define WHEEL_TIMEOUT 5000
+/// Make the time as long as we can to indicate a stopped wheel
+#define WHEEL_STOPPED 0xFFFFFFFF
+///global flag (set in \ref Src/usb_cdc_if.c) for whether USB is connected
+volatile uint8_t USBConnected;
+uint16_t pitotVoltage;
 
 int main(void) {
-	wheelCount=0;
-	wheelTime=0;
-	uint16_t switchState=0;
-	uint16_t buff_len = 50;
-	uint8_t buff[50];
-	uint16_t data;
-	int16_t adcVal;
+    //setup globals
+    wheelCount=0;
+    wheelTime=WHEEL_STOPPED;
+    pitotVoltage=0;
+    USBConnected = false;
 
-	// Reset of all peripherals, Initializes the Flash interface and the Systick.
-	HAL_Init();
+    //local varibles
+    float voltage;
+    uint16_t adcVal;
 
-	// Configure the system clock
-	SystemClock_Config();
+    // Reset of all peripherals, Initializes the Flash interface and the Systick.
+    HAL_Init();
+    // Configure the system clock
+    SystemClock_Config();
+    MX_USB_DEVICE_Init();
+    // Initialize all configured peripherals
+    MX_GPIO_Init();
+#ifdef STING
+    MX_ADC_Init();
+#endif
 
-	// Initialize all configured peripherals
-	MX_GPIO_Init();
-	MX_NVIC_Init();
-    	MX_USB_DEVICE_Init();
-	MX_ADC_Init();
+    //HAL_Delay(100);
 
-    
-	wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
-	wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
+    //setup CAN, ID's, and gives each an RTR callback
+    wheelCountNode = CanNode_init(WHEEL_TACH, countRTR, true);
+    wheelTimeNode = CanNode_init(WHEEL_TIME, timeRTR, true);
+#ifdef STING
+    pitotNode = CanNode_init(PITOT, pitotRTR, true);
+#endif
 
-	//setup name/info strings
-	const char* wheelCountName = "Wheel revolution count";
-	const char* wheelCountInfo = "Gives the number of wheel revolutions in the "
-		                         "last second.";
-	CanNode_setName(wheelCountNode, wheelCountName, sizeof(wheelCountName));
-	CanNode_setInfo(wheelCountNode, wheelCountInfo, sizeof(wheelCountInfo));
+    while (1) {
+        //check if there is a message necessary for CanNode functionality
+        CanNode_checkForMessages();
 
-	const char* wheelTimeName = "Wheel rotation time";
-	const char* wheelTimeInfo = "Gives the ammount of time that the previous "
-		                        "Wheel revolution took.";
-	CanNode_setName(wheelTimeNode, wheelTimeName, sizeof(wheelTimeName));
-	CanNode_setInfo(wheelTimeNode, wheelTimeInfo, sizeof(wheelTimeInfo));
-	
+        //get the current time
+        uint32_t time = HAL_GetTick();
 
-	while (1) {
-		//get the current time
-		HAL_Delay(1);
-		uint32_t time = HAL_GetTick();
-		//check if there is a message necessary for CanNode functionality
-		CanNode_checkForMessages();
+        //stuff to do every half second
+        if(time % 250 == 0){
 
-		HAL_ADC_Start(&hadc);
-        	HAL_ADC_PollForConversion(&hadc, 5);
-		adcVal = HAL_ADC_GetValue(&hadc);
-		switchState = IO1_GPIO_Port->IDR & IO1_Pin;
+#ifdef STING
+            //read ADC value
+            HAL_ADC_Start(&hadc);
+            HAL_ADC_PollForConversion(&hadc, 5);
+            adcVal = HAL_ADC_GetValue(&hadc);
 
+            //do some heavy math
+            voltage = adcVal/4096.0; //make the adv value something between 0 and 1
+            voltage *= 3600; //multiply by the value necessary to convert to 0-3.6V signal
+            pitotVoltage = (uint16_t) voltage; //put into an integer number
 
+            //send the pitot voltage
+            CanNode_sendData_uint16(pitotNode, pitotVoltage);
+#endif
 
-		if(switchState){
-			LED2_GPIO_Port->ODR |= LED2_Pin;
-			switchState = 1;
-		}
-		else{
-			LED2_GPIO_Port->ODR &= ~LED2_Pin;
-			switchState = 0;
-		}
+            //send ammount of time per revolution
+            CanNode_sendData_uint32(wheelTimeNode, wheelTime);
+            //We have sent the latest data, set to invalid data
+            wheelTime=WHEEL_STOPPED;
+        }
+        //do every 499ms to get at the wheelTime varible before it is reset
+        if(USBConnected && time % 499 == 0){
 
+            //NOTE: the maximum buffer length is set in the
+            //USB code to be 64 bytes.
+            char buff[50];
 
-		//send time data once every 0.5s
-		if(time % 500 == 0){
-			CanNode_sendData_uint32(wheelTimeNode, wheelTime);
-			itoa(adcVal, buff, 10);
-			strcat(buff, "\n\r");
-			if(switchState){
-				strcat(buff, "on\n\r");
-			}
-			else {
-				strcat(buff, "off\n\r");
-			}
-			CDC_Transmit_FS(buff, strlen(buff));
-		}
-		//send and reset count varible every second
-		if(time % 1000 == 0){
-			CanNode_sendData_uint8(wheelCountNode, wheelCount);
-			wheelCount=0;
-			HAL_GPIO_TogglePin(GPIOB, LED1_Pin);
-		}
-	}
+            //setup the buffer with the required information
+            //The data is sent in a CSV format like the following
+            // RPS, Time per revolution in ms, ADC value
+            itoa(wheelCount, buff, 10);
+            strcat(buff, ", ");
+            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
+
+            itoa(wheelTime, buff, 10);
+            strcat(buff, ", ");
+            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
+
+            //debug check if pin is changing
+            //pitotVoltage = HAL_GPIO_ReadPin(IO1_GPIO_Port, IO1_Pin);
+            itoa(pitotVoltage, buff, 10);
+            //send a break between data sets
+            strcat(buff, "\n\r");
+
+            CDC_Transmit_FS((uint8_t*) buff, strlen(buff));
+
+        }
+
+        //stuff to do every second
+        if(time % 1000 == 0){
+            //send RPS data
+            CanNode_sendData_uint8(wheelCountNode, wheelCount);
+
+            //reset RPS varible
+            wheelCount=0;
+
+            //blink heartbeat LED
+            HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
+
+        }
+        //every 30 seconds reset the CAN hardware
+        if(time % 33333 == 0){
+            can_init();
+            can_set_bitrate(CAN_BITRATE_500K);
+            can_enable();
+        }
+        //make sure we don't run this code on the next loop
+        HAL_Delay(1);
+    }
 }
 
+///RTR handler for the RPS id
 void countRTR(CanMessage* data){
-	CanNode_sendData_uint8(wheelCountNode, wheelCount);
+    CanNode_sendData_uint8(wheelCountNode, wheelCount);
 }
 
+///RTR handler for the wheel revolution time id
 void timeRTR(CanMessage* data){
-	CanNode_sendData_uint32(wheelTimeNode, wheelTime);
+    CanNode_sendData_uint32(wheelTimeNode, wheelTime);
+}
+void pitotRTR(CanMessage* data){
+    CanNode_sendData_uint16(pitotNode, pitotVoltage);
 }
 
-//callback for pin6 (IO1) interrupt
-
+///callback for pin6 (IO1) interrupt
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
-	static uint32_t startTime=0;
-	uint32_t newTime = HAL_GetTick();
-	uint32_t tempTime = newTime - startTime;
-	
-	//if the supposed time it takes for the wheel to go around is less than
-	//31/32 of the last time then it is just contact bounce and should be 
-	//ignored
-	if(tempTime < wheelTime-(wheelTime>>5) ) {
-	    return;
-	}
-	//get the elapsed time
-	wheelTime = tempTime;
-	//set the new start time
-	startTime = newTime;
-	//increment the wheel count
-	++wheelCount;
-	//toggle led
-	LED2_GPIO_Port->ODR ^= LED2_Pin;
-}
+    //when was our last pulse
+    static uint32_t startTime = 0;
+    static uint8_t oddPulse = 0;
+    //what is our current time
+    uint32_t newTime = HAL_GetTick();
+    //how long did this revolution take
+    uint32_t tempTime = newTime - startTime;
 
-/** System Clock Configuration
-*/
+    //if the supposed time it takes for the wheel to go around is less than
+    //31/32 of the last time then it is just bounce contact and should be
+    //ignored
+    /*
+    if(tempTime < wheelTime-(wheelTime>>5) ) {
+        return;
+    }
+     */
+
+    /* If the new time is less than 50ms than it was a fluke
+     */
+    if(tempTime < 60){
+        return;
+    }
+
+
+    //if the supposed time it takes for the wheel to go around is less than
+    //3/4 of the last time then it is just bounce contact and should be
+    //ignored
+    //if(tempTime < wheelTime-(wheelTime>>2)) {
+    //    return;
+    //}
+
+    //set the new start time
+    startTime = wheelStartTime = newTime;
+
+    wheelTime = tempTime; //Valid pulse, save the value
+#ifdef URBIE
+    //multiply wheelTime by two (b/c two magnets per revolution)
+    wheelTime = wheelTime << 1;
+    //urbie has two magnets per wheel only half of pulses are a full revolution
+    if(oddPulse){
+        ++wheelCount; //increment the wheel count
+        oddPulse=0;
+    }
+    else{
+        oddPulse=1;
+    }
+#else
+    ++wheelCount;
+#endif
+
+    //toggle led
+    HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
+}
 
 /** System Clock Configuration
 */
 void SystemClock_Config(void)
 {
 
-	RCC_OscInitTypeDef RCC_OscInitStruct;
-	RCC_ClkInitTypeDef RCC_ClkInitStruct;
-	RCC_PeriphCLKInitTypeDef PeriphClkInit;
+    RCC_OscInitTypeDef RCC_OscInitStruct;
+    RCC_ClkInitTypeDef RCC_ClkInitStruct;
+    RCC_PeriphCLKInitTypeDef PeriphClkInit;
 
-	RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI14|RCC_OSCILLATORTYPE_HSI48;
-	RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
-	RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
-	RCC_OscInitStruct.HSI14CalibrationValue = 16;
-	RCC_OscInitStruct.PLL.PLLState = RCC_PLL_NONE;
-	HAL_RCC_OscConfig(&RCC_OscInitStruct);
+    RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI14
+                                     | RCC_OSCILLATORTYPE_HSI48
+                                     | RCC_OSCILLATORTYPE_LSI;
 
-	RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
-		              |RCC_CLOCKTYPE_PCLK1;
-	RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_HSI48;
-	RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
-	RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
-	HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_1);
+    RCC_OscInitStruct.HSI48State = RCC_HSI48_ON;
+    RCC_OscInitStruct.HSI14State = RCC_HSI14_ON;
+    RCC_OscInitStruct.HSI14CalibrationValue = 16;
+    RCC_OscInitStruct.LSIState = RCC_LSI_ON;
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI48;
+    RCC_OscInitStruct.PLL.PLLMUL = RCC_PLL_MUL2;
+    RCC_OscInitStruct.PLL.PREDIV = RCC_PREDIV_DIV6;
+    HAL_RCC_OscConfig(&RCC_OscInitStruct);
 
-	PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB;
-	PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
-	HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
+    RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK
+                                | RCC_CLOCKTYPE_SYSCLK
+                                | RCC_CLOCKTYPE_PCLK1;
 
-	HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
+    RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+    RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+    HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_0);
 
-	HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USB|RCC_PERIPHCLK_RTC;
+    PeriphClkInit.RTCClockSelection = RCC_RTCCLKSOURCE_LSI;
+    PeriphClkInit.UsbClockSelection = RCC_USBCLKSOURCE_HSI48;
+    HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit);
 
-	/* SysTick_IRQn interrupt configuration */
-	HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
+    HAL_SYSTICK_Config(HAL_RCC_GetHCLKFreq()/1000);
+
+    HAL_SYSTICK_CLKSourceConfig(SYSTICK_CLKSOURCE_HCLK);
+
+    /* SysTick_IRQn interrupt configuration */
+    HAL_NVIC_SetPriority(SysTick_IRQn, 0, 0);
 }
 
 /* ADC init function */
 void MX_ADC_Init(void) {
-  ADC_ChannelConfTypeDef sConfig;
+ADC_ChannelConfTypeDef sConfig;
 
     /**Configure the global features of the ADC (Clock, Resolution, Data Alignment and number of conversion)
     */
-  hadc.Instance = ADC1;
-  hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-  hadc.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
-  hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc.Init.LowPowerAutoWait = DISABLE;
-  hadc.Init.LowPowerAutoPowerOff = DISABLE;
-  hadc.Init.ContinuousConvMode = DISABLE;
-  hadc.Init.DiscontinuousConvMode = ENABLE;
-  hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc.Init.DMAContinuousRequests = DISABLE;
-  hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  HAL_ADC_Init(&hadc);
+    hadc.Instance = ADC1;
+    hadc.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
+    hadc.Init.Resolution = ADC_RESOLUTION_12B;
+    hadc.Init.DataAlign = ADC_DATAALIGN_RIGHT;
+    hadc.Init.ScanConvMode = ADC_SCAN_DIRECTION_FORWARD;
+    hadc.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
+    hadc.Init.LowPowerAutoWait = DISABLE;
+    hadc.Init.LowPowerAutoPowerOff = DISABLE;
+    hadc.Init.ContinuousConvMode = DISABLE;
+    hadc.Init.DiscontinuousConvMode = ENABLE;
+    hadc.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
+    hadc.Init.DMAContinuousRequests = DISABLE;
+    hadc.Init.Overrun = ADC_OVR_DATA_PRESERVED;
+    HAL_ADC_Init(&hadc);
 
     /**Configure for the selected ADC regular channel to be converted.
     */
-  sConfig.Channel = ADC_CHANNEL_7;
-  sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
-  sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
-  HAL_ADC_ConfigChannel(&hadc, &sConfig);
-
+    sConfig.Channel = IO1_ADC;
+    sConfig.Rank = ADC_RANK_CHANNEL_NUMBER;
+    sConfig.SamplingTime = ADC_SAMPLETIME_1CYCLE_5;
+    HAL_ADC_ConfigChannel(&hadc, &sConfig);
 }
 
 
 /** Configure pins as
-        * Analog
-        * Input
-        * Output
-        * EVENT_OUT
-        * EXTI
-        * Free pins are configured automatically as Analog (this feature is enabled through 
-        * the Code Generation settings)
+ * Analog
+ * Input
+ * Output
+.* EVENT_OUT
+.* EXTI
+.* Free pins are configured automatically as Analog (this feature is enabled through
+.* the Code Generation settings)
 */
-void MX_GPIO_Init(void)
-{
+void MX_GPIO_Init(void) {
 
     GPIO_InitTypeDef GPIO_InitStruct;
 
+    // Make all unused pins analog to save power
     /* GPIO Ports Clock Enable */
     __HAL_RCC_GPIOC_CLK_ENABLE();
     __HAL_RCC_GPIOF_CLK_ENABLE();
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    __HAL_RCC_GPIOB_CLK_ENABLE();
 
     /*Configure GPIO pins : PC13 PC14 PC15 */
     GPIO_InitStruct.Pin = GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15;
@@ -260,24 +349,31 @@ void MX_GPIO_Init(void)
     HAL_GPIO_Init(GPIOF, &GPIO_InitStruct);
 
     /*Configure GPIO pins : PA0 PA1 PA2 PA3
-                           PA4 PA5 PA6 PA8
-                           PA9 PA10 PA15 */
+                       PA4 PA5 PA6 PA8
+                       PA9 PA10 PA15 */
     GPIO_InitStruct.Pin = GPIO_PIN_0|GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_3
-                          |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_8
-                          |GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_15;
+                         |GPIO_PIN_4|GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_8
+                         |GPIO_PIN_9|GPIO_PIN_10|GPIO_PIN_15;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     /*Configure GPIO pins : PB1 PB2 PB10 PB11
-                           PB12 PB13 PB14 PB15
-                           PB5 PB6 PB7 */
-    GPIO_InitStruct.Pin = GPIO_PIN_1|GPIO_PIN_2|GPIO_PIN_10|GPIO_PIN_11
-                          |GPIO_PIN_12|GPIO_PIN_13|GPIO_PIN_14|GPIO_PIN_15
-                          |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
+                       PB12 PB13 PB14 PB15
+                       PB5 PB6 PB7 */
+    GPIO_InitStruct.Pin = GPIO_PIN_1 | GPIO_PIN_2 | GPIO_PIN_10|GPIO_PIN_11
+                         |GPIO_PIN_12| GPIO_PIN_13| GPIO_PIN_14|GPIO_PIN_15
+                         |GPIO_PIN_5|GPIO_PIN_6|GPIO_PIN_7;
     GPIO_InitStruct.Mode = GPIO_MODE_ANALOG;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+    __HAL_RCC_GPIOC_CLK_DISABLE();
+    __HAL_RCC_GPIOF_CLK_DISABLE();
+
+    //Enable used io pins
+    __HAL_RCC_GPIOA_CLK_ENABLE();
+    __HAL_RCC_GPIOB_CLK_ENABLE();
 
     /*Configure GPIO pins : LED2_Pin LED1_Pin */
     GPIO_InitStruct.Pin = LED2_Pin|LED1_Pin;
@@ -290,20 +386,32 @@ void MX_GPIO_Init(void)
     HAL_GPIO_WritePin(GPIOB, LED2_Pin|LED1_Pin, GPIO_PIN_SET);
 
 
+    // Urbie's sensor is an open drain active-low sensor, so it needs a pullup resistor and a
+    // falling edge interrupt. It is on IO Pin 1
+    // Sting's sensor is just a low active switch with a filter
     //configure IO1 as a rising edge interrupt pin
-	GPIO_InitStruct.Pin = IO1_Pin;
-	GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
-	GPIO_InitStruct.Pull = GPIO_PULLDOWN;
-	HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
-	
+    //GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+    //GPIO_InitStruct.Pull = GPIO_PULLUP;
 
-}
+    //for switch board outside cars
+    GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
+    GPIO_InitStruct.Pull = GPIO_PULLDOWN;
+#ifdef STING
+    GPIO_InitStruct.Pin = IO2_Pin;
+    HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
+#else if URBIE
+    GPIO_InitStruct.Pin = IO1_Pin;
+    HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
+#endif
 
-/** 
- * NVIC Configuration
- */
-void MX_NVIC_Init(void) {
-	/* EXTI4_15_IRQn interrupt configuration */
-	HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
-	HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+#ifdef STING
+    //Sting's interrupt is on EXTI 7
+    /* EXTI4_15_IRQn interrupt configuration */
+    HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
+#else if URBIE
+    //Urbie's interrupt is on EXIT 0
+    HAL_NVIC_SetPriority(EXTI0_1_IRQn, 0, 0);
+    HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);
+#endif
 }

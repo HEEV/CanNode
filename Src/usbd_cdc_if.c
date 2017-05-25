@@ -36,6 +36,8 @@
 /* Includes ------------------------------------------------------------------*/
 #include "usbd_cdc_if.h"
 
+extern volatile uint8_t USBConnected;
+
 /** @addtogroup STM32_USB_OTG_DEVICE_LIBRARY
  * @{
  */
@@ -61,7 +63,7 @@
 /* Define size for the receive and transmit buffer over CDC */
 /* It's up to user to redefine and/or remove those define */
 #define APP_RX_DATA_SIZE  32
-#define APP_TX_DATA_SIZE  32
+#define APP_TX_DATA_SIZE  64
 /* USER CODE END 1 */
 /**
  * @}
@@ -128,7 +130,9 @@ static int8_t CDC_Init_FS(void)
     hUsbDevice_0 = &hUsbDeviceFS;
     /* USER CODE BEGIN 4 */
     /* Set Application Buffers */
+    //
     USBD_CDC_SetRxBuffer(hUsbDevice_0, UserRxBufferFS);
+    USBConnected = 1;
     return (USBD_OK);
     /* USER CODE END 4 */
 }
@@ -142,6 +146,7 @@ static int8_t CDC_Init_FS(void)
 static int8_t CDC_DeInit_FS(void)
 {
     /* USER CODE BEGIN 5 */
+    USBConnected = 0;
     return (USBD_OK);
     /* USER CODE END 5 */
 }
