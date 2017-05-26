@@ -1,5 +1,5 @@
 /**
- * \mainpage [CanNode library](\ref CanNode_Module] documentation
+ * \mainpage \ref CanNode_Module library documentation
  *
  * \tableofcontents
  *
@@ -35,31 +35,47 @@
  * #include "CanNode.h"
  * #define LISTEN_ID 1520 //Id to be listening for
  *
+ * //this is global so that the handler functions can send messages
+ * CanNode* node;
+ *
  * int main();
  * // prototypes for handler function
  * void nodeHandler(CanMessage* msg);
+ * void tempuratureHandler(CanMessage* msg);
  *
  * int main() {
- *     CanNode* node;
  *     uint16_t data_to_send;
  *     const char[] NAME = "Tempurature sensor 3";
- *     const char[] INFO = "Tempurature sensor for the blah blah blah. This can be up MAX_INFO_LEN characters long."
+ *     const char[] INFO = "Tempurature sensor for the blah blah blah.";
  *
  *     //Analog sensor node 3. The boolean value makes the library search for
  *     //old values before putting in the specified configuration
- *     node = CanNode_init(ENGINE_TEMP, false); 
+ *     node = CanNode_init(ENGINE_TEMP, tempuratureRTR); 
  *
  *     //set name and information strings
- *     CanNode_setName(node, NAME,(uint8_t) sizeof(NAME));
- *     CanNode_setInfo(node, INFO,(uint8_t) sizeof(INFO));
+ *     CanNode_setName(node, NAME);
+ *     CanNode_setInfo(node, INFO);
  *
  *     //add a filter to listen for other nodes, handle it with a function
  *     CanNode_addFilter(node, LISTEN_ID, nodeHandler);
  *
  *     for(;;) {
+ *         //necessary for handler functions to work
+ *         CanNode_checkForMessages();
  *	       //get data to send and put it in varible
  *         CanNode_sendData_uint16(node, data_to_send);
  *     }
+ * }
+ *
+ * //RTR messages are when a caller wants a particular node to provide some
+ * //data back. Therefore the RTR handler function should either send data back
+ * //or flag the main process to send data back.
+ * void tempuratureRTR(CanMessage* msg) {
+ *     //get data
+ *     uint16_t data;
+ *     data = getTempurature();
+ *     //send data back
+ *     CanNode_sendData_uint16(node, data);
  * }
  *
  * void nodeHandler(CanMessage* msg) {
@@ -74,8 +90,7 @@
  * 
  * Of course code for clock and GPIO initilization would also be necessary.
  * 
- * For more information about the underlying protocol, read \ref CanNodeProtocol
- * .
+ * For more information about the underlying protocol, read \ref CanNodeProtocol.
  *
  * \subsection Overriding Overriding Other Nodes
  *

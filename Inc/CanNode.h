@@ -14,12 +14,12 @@
 #ifndef _CAN_NODE_H_
 #define _CAN_NODE_H_
 
-#include <stdint.h>
-#include <stdbool.h>
-#include <stdlib.h>
-#include <string.h>
 #include "CanTypes.h"
 #include "can.h"
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 /** \addtogroup CanNode_Module CanNode
  * \brief Library to provide a higher level protocol for CAN communication.
@@ -35,7 +35,7 @@
  *
  * In order to send data and use filter callbacks you need to initilize a node.
  * to do this call CanNode_init(), passing in a CanNodeType (acts like an id), a
- * filterHandler for handling RTR callbacks for that node,
+ * filterHandler for handling RTR (Retrun Transmission Request) callbacks for that node,
  * and a boolean value (it doesn't matter what) this returns a CanNode pointer to
  * a newly initilized CanNode struct. You can initilize up to \ref MAX_NODES nodes
  * in this way.
@@ -43,28 +43,47 @@
  * Example code
  * ~~~~~~~~~~~~ {.c}
  *
+ * CanNode* newNode;
  * void pitotRTR(CanMessage* msg);
  *
  * void main(){
- *	CanNode* newNode;
- *	newNode = CanNode_init(PITOT, pitotRTR, false);
+ *	newNode = CanNode_init(PITOT, pitotRTR);
  *	//other stuff here
+ *	//...
  * }
  *
  * void pitotRTR(CanMessage* msg){
  *	//continue to do what needs to be done.
+ *	uint16_t data = getSensorData();
+ *	//call one of the \ref sendData functions to return the data
+ *	CanNode_sendData_uint16(newNode, data);
  * }
  * ~~~~~~~~~~~~
  *
- * Another often usefull thing to do is add filters
+ * Another often useful thing to do is add filters
  *
  * ### Adding filters ###
  *
+ * This is how to add a filter for a single id
  * Example code
  *
  * ~~~~~~~~~~~~ {.c}
+ * CanNode* node;
+ * const uint16_t filterId = 1200;
+ * //initilize node
+ * //...
+ * CanNode_addFilter(node, filterId, handler);
+ * ~~~~~~~~~~~~
+ *
+ * This is how a filter mask is added (data from multiple ids).
+ * Example code
+ *
+ * ~~~~~~~~~~~~ {.c}
+ * CanNode* node;
+ * //initilize node
+ * //...
  * uint16_t id = can_add_filter_mask(id_to_filter, id_mask);
- * CanNode_addFilter(id, handler);
+ * CanNode_addFilter(node, id, handler);
  * ~~~~~~~~~~~~
  *@{
  */
@@ -79,9 +98,9 @@
  */
 
 /// \brief Initilize a CanNode from given parameters.
-CanNode* CanNode_init(CanNodeType id, filterHandler rtrHandle, bool force);
+CanNode *CanNode_init(CanNodeType id, filterHandler rtrHandle);
 /// \brief Add a filter and handler to a given CanNode.
-bool CanNode_addFilter(CanNode* node, uint16_t filter, filterHandler handle);
+bool CanNode_addFilter(CanNode *node, uint16_t filter, filterHandler handle);
 /// \brief Check all initilized CanNodes for messages and call callbacks.
 void CanNode_checkForMessages();
 
@@ -93,15 +112,15 @@ void CanNode_checkForMessages();
  * @{
  */
 /// \brief Send a signed 8-bit integer.
-void CanNode_sendData_int8   (const CanNode* node,   int8_t data);
+void CanNode_sendData_int8(const CanNode *node, int8_t data);
 /// \brief Send an unsigned 8-bit integer.
-void CanNode_sendData_uint8  (const CanNode* node,  uint8_t data);
+void CanNode_sendData_uint8(const CanNode *node, uint8_t data);
 /// \brief Send a signed 16-bit integer.
-void CanNode_sendData_int16  (const CanNode* node,  int16_t data);
+void CanNode_sendData_int16(const CanNode *node, int16_t data);
 /// \brief Send an unsigned 16-bit integer.
-void CanNode_sendData_uint16 (const CanNode* node, uint16_t data);
+void CanNode_sendData_uint16(const CanNode *node, uint16_t data);
 /// \brief Send a signed 32-bit integer.
-void CanNode_sendData_int32  (const CanNode* node,  int32_t data);
+void CanNode_sendData_int32(const CanNode *node, int32_t data);
 /// \brief Send an unsigned 32-bit integer.
 void CanNode_sendData_uint32 (const CanNode* node, uint32_t data);
 //@}
@@ -113,13 +132,17 @@ void CanNode_sendData_uint32 (const CanNode* node, uint32_t data);
  *@{
  */
 /// \brief Send an array of uinsigned 8-bit integers.
-CanState CanNode_sendDataArr_int8   (const CanNode* node, int8_t* data, uint8_t len);
+CanState CanNode_sendDataArr_int8(const CanNode *node, int8_t *data,
+                                  uint8_t len);
 /// \brief Send an array of signed 8-bit integers.
-CanState CanNode_sendDataArr_uint8  (const CanNode* node, uint8_t* data, uint8_t len);
+CanState CanNode_sendDataArr_uint8(const CanNode *node, uint8_t *data,
+                                   uint8_t len);
 /// \brief Send an array of uinsigned 16-bit integers.
-CanState CanNode_sendDataArr_int16  (const CanNode* node, int16_t* data, uint8_t len);
+CanState CanNode_sendDataArr_int16(const CanNode *node, int16_t *data,
+                                   uint8_t len);
 /// \brief Send an array of signed 16-bit integers.
-CanState CanNode_sendDataArr_uint16 (const CanNode* node, uint16_t* data, uint8_t len);
+CanState CanNode_sendDataArr_uint16(const CanNode *node, uint16_t *data,
+                                    uint8_t len);
 //@}
 
 /**
@@ -135,17 +158,17 @@ CanState CanNode_sendDataArr_uint16 (const CanNode* node, uint16_t* data, uint8_
  * @{
  */
 /// \brief Get a signed 8-bit integer from a CanMessage.
-CanState CanNode_getData_int8   (const CanMessage* msg,   int8_t* data);
+CanState CanNode_getData_int8(const CanMessage *msg, int8_t *data);
 /// \brief Get an unsigned 8-bit integer from a CanMessage.
-CanState CanNode_getData_uint8  (const CanMessage* msg,  uint8_t* data);
+CanState CanNode_getData_uint8(const CanMessage *msg, uint8_t *data);
 /// \brief Get a signed 16-bit integer from a CanMessage.
-CanState CanNode_getData_int16  (const CanMessage* msg,  int16_t* data);
+CanState CanNode_getData_int16(const CanMessage *msg, int16_t *data);
 /// \brief Get an unsigned 16-bit integer from a CanMessage.
-CanState CanNode_getData_uint16 (const CanMessage* msg, uint16_t* data);
+CanState CanNode_getData_uint16(const CanMessage *msg, uint16_t *data);
 /// \brief Get a signed 32-bit integer from a CanMessage.
-CanState CanNode_getData_int32  (const CanMessage* msg,  int32_t* data);
+CanState CanNode_getData_int32(const CanMessage *msg, int32_t *data);
 /// \brief Get an unsigned 32-bit integer from a CanMessage.
-CanState CanNode_getData_uint32 (const CanMessage* msg, uint32_t* data);
+CanState CanNode_getData_uint32(const CanMessage *msg, uint32_t *data);
 //@}
 
 /**
@@ -156,13 +179,35 @@ CanState CanNode_getData_uint32 (const CanMessage* msg, uint32_t* data);
  * @{
  */
 /// \brief Get an array of signed 8-bit integers from a CanMessage.
-CanState CanNode_getDataArr_int8   (const CanMessage* msg, int8_t data[7], uint8_t* len);
+CanState CanNode_getDataArr_int8(const CanMessage *msg, int8_t data[7],
+                                 uint8_t *len);
 /// \brief Get an array of unsigned 8-bit integers from a CanMessage.
-CanState CanNode_getDataArr_uint8  (const CanMessage* msg, uint8_t data[7], uint8_t* len);
+CanState CanNode_getDataArr_uint8(const CanMessage *msg, uint8_t data[7],
+                                  uint8_t *len);
 /// \brief Get an array of signed 16-bit integers from a CanMessage.
-CanState CanNode_getDataArr_int16  (const CanMessage* msg, int16_t data[2], uint8_t* len);
+CanState CanNode_getDataArr_int16(const CanMessage *msg, int16_t data[2],
+                                  uint8_t *len);
 /// \brief Get an array of unsigned 16-bit integers from a CanMessage.
-CanState CanNode_getDataArr_uint16 (const CanMessage* msg, uint16_t data[2], uint8_t* len);
+CanState CanNode_getDataArr_uint16(const CanMessage *msg, uint16_t data[2],
+                                   uint8_t *len);
+//@}
+
+/**
+ * \anchor nameFunctions
+ * \name Name Functions
+ * These functions handle names for the \ref CanNode_Module library. They allow
+ * for providing a name and descriptive text for a node and requesting the same
+ * information from another node.
+ * @{
+ */
+/// \brief Set the name string
+void CanNode_setName(CanNode *node, const char *data);
+/// \brief Set the info string
+void CanNode_setInfo(CanNode *node, const char *info);
+/// \brief request the name string from another CanNode
+const char *CanNode_requestName(CanNodeType id);
+/// \brief request the info string from another CanNode
+const char *CanNode_requestInfo(CanNodeType id);
 //@}
 
 /*@}*/
