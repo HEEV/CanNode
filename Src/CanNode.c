@@ -1140,7 +1140,7 @@ void CanNode_setInfo(CanNode *node, const char *info) {
  * \param len length of the character buffer
  * \param timeout length in mili-seconds before giving up the message
  *
- * \see CanNode_getInfo()
+ * \see CanNode_requestInfo()
  */
 void CanNode_requestName(CanNodeType id, char *buff, uint8_t len,
                          uint16_t timeout) {
@@ -1192,7 +1192,7 @@ void CanNode_requestName(CanNodeType id, char *buff, uint8_t len,
  * \param buff_len length of the character buffer
  * \param timeout length in mili-seconds before giving up the message
  *
- * \see CanNode_getName()
+ * \see CanNode_requestName()
  */
 void CanNode_requestInfo(CanNodeType id, char *buff, uint8_t len,
                          uint16_t timeout) {
