@@ -65,6 +65,7 @@
  * ### Adding filters ###
  *
  * This is how to add a filter for a single id
+ * 
  * Example code
  *
  * ~~~~~~~~~~~~ {.c}
@@ -76,6 +77,7 @@
  * ~~~~~~~~~~~~
  *
  * This is how a filter mask is added (data from multiple ids).
+ *
  * Example code
  *
  * ~~~~~~~~~~~~ {.c}
