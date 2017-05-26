@@ -210,8 +210,8 @@ typedef struct {
   filterHandler handle[NUM_FILTERS]; ///< array of function pointers to call
                                      ///< when a id in filters is found
   CanNodeType sensorType;            ///< Type of sensor
-  char *nameStr;                     ///< points to the name of the node
-  char *infoStr;                     ///< points to the info string for the node
+  const char *nameStr;                     ///< points to the name of the node
+  const char *infoStr;                     ///< points to the info string for the node
 } CanNode;
 
 //@}

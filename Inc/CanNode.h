@@ -201,13 +201,15 @@ CanState CanNode_getDataArr_uint16(const CanMessage *msg, uint16_t data[2],
  * @{
  */
 /// \brief Set the name string
-void CanNode_setName(CanNode *node, const char *data);
+void CanNode_setName(CanNode *node, const char *name);
 /// \brief Set the info string
 void CanNode_setInfo(CanNode *node, const char *info);
 /// \brief request the name string from another CanNode
-const char *CanNode_requestName(CanNodeType id);
+void CanNode_requestName(CanNodeType id, char *buff, uint8_t len,
+                         uint16_t timeout);
 /// \brief request the info string from another CanNode
-const char *CanNode_requestInfo(CanNodeType id);
+void CanNode_requestInfo(CanNodeType id, char *buff, uint8_t len,
+                         uint16_t timeout);
 //@}
 
 /*@}*/

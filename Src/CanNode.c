@@ -1123,6 +1123,117 @@ void CanNode_checkForMessages() {
   newMessage = false;
 }
 
+void CanNode_setName(CanNode *node, const char *name) {
+    node->nameStr = name;
+}
+
+void CanNode_setInfo(CanNode *node, const char *info) {
+    node->infoStr = info;
+}
+
+/**
+ * Get the name string from the node of the given id and put it in a character
+ * buffer.
+ *
+ * \param id id of the node that you want the name of
+ * \param buff character buffer to put the name into
+ * \param len length of the character buffer
+ * \param timeout length in mili-seconds before giving up the message
+ *
+ * \see CanNode_getInfo()
+ */
+void CanNode_requestName(CanNodeType id, char *buff, uint8_t len,
+                         uint16_t timeout) {
+  CanMessage msg;
+  uint32_t tickStart;
+  // send a request to the specified CanNode and query its get name address
+  msg.id = id + 1;
+  msg.len = 1;
+  msg.rtr = true;
+  msg.data[0] = CAN_GET_NAME | (CAN_INT8 << 5);
+  can_tx(&msg, 5);
+
+
+  // get start time
+  tickStart = HAL_GetTick();
+
+  char *namePtr = buff;
+
+  // keep collecting data until a null character is reached, buffer is full,
+  // or a timeout condition is reached.
+  while (namePtr - buff < len && HAL_GetTick() - tickStart < timeout) {
+    // wait for message or timeout
+    while (!is_can_msg_pending() && HAL_GetTick() - tickStart < timeout)
+      ;
+    // get the next buffer
+    can_rx(&msg, 5);
+    // check if it is from our id
+    if (msg.id != id || (msg.data[0] & 0x1F) != CAN_NAME_INFO) {
+      continue;
+    }
+    // get all the data from this buffer
+    for (uint8_t i = 1; i < msg.len && namePtr - buff < len;
+         ++namePtr, ++i) {
+      *namePtr = msg.data[i];
+    }
+  }
+
+  //this won't hurt anything and if the function timeouted this will make sure
+  //that the string is null terminated
+  *(buff+len-1)='\0';
+}
+
+/**
+ * Get the info string from the node of the given id and put it in a character
+ * buffer. The function will never deliver more than \ref MAX_INFO_LEN.
+ *
+ * \param id id of the node that you want the information string of
+ * \param info character buffer to put the info string into
+ * \param buff_len length of the character buffer
+ * \param timeout length in mili-seconds before giving up the message
+ *
+ * \see CanNode_getName()
+ */
+void CanNode_requestInfo(CanNodeType id, char *buff, uint8_t len,
+                         uint16_t timeout) {
+
+  CanMessage msg;
+  uint32_t tickStart;
+  // send a request to the specified id
+  msg.id = id + 2;
+  msg.len = 1;
+  msg.rtr = false;
+  msg.data[0] = CAN_GET_INFO | (CAN_INT8 << 5);
+  can_tx(&msg, 5);
+
+  // get start time
+  tickStart = HAL_GetTick();
+
+  char *infoPtr = buff;
+  // keep collecting data until a null character is reached, buffer is full,
+  // or a timeout condition is reached.
+  while (infoPtr - buff < len && HAL_GetTick() - tickStart < timeout) {
+    // wait for message or timeout
+    while (!is_can_msg_pending() && HAL_GetTick() - tickStart < timeout)
+      ;
+    // get the next buffer
+    can_rx(&msg, 5);
+    // check if it is from our id
+    if (msg.id != id || (msg.data[0] & 0x1F) != CAN_NAME_INFO) {
+      continue;
+    }
+    // get all the data from this buffer
+    for (uint8_t i = 1; i < msg.len && infoPtr - buff < len;
+         ++infoPtr, ++i) {
+      *infoPtr= msg.data[i];
+    }
+  }
+
+  //this won't hurt anything and if the function timeouted this will make sure
+  //that the string is null terminated
+  *(buff+len-1)='\0';
+}
+
 static void CanNode_sendName(const CanNode *node) {
   CanMessage msg;
   msg.id = node->id + 1;
@@ -1130,7 +1241,7 @@ static void CanNode_sendName(const CanNode *node) {
   msg.data[0] = CAN_NAME_INFO | CAN_INT8 << 5;
 
   //fill buffers and send them 
-  char *namePtr = node->nameStr;
+  const char *namePtr = node->nameStr;
   //check that there is valid data to transmit
   if(namePtr == NULL){
       return;
@@ -1157,7 +1268,7 @@ static void CanNode_sendInfo(const CanNode *node) {
   msg.data[0] = CAN_NAME_INFO | CAN_INT8 << 5;
 
   //fill buffers and send them 
-  char *infoPtr = node->infoStr;
+  const char *infoPtr = node->infoStr;
   //check that there is valid data to transmit
   if(infoPtr == NULL){
       return;
