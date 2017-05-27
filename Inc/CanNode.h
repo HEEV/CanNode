@@ -25,9 +25,11 @@
  * \brief Library to provide a higher level protocol for CAN communication.
  * Specifically for stm32 microcontrollers
  *
- * A CanNode should be initilized with CanNode_init() this will return a pointer to
+ * A CanNode should be initilized with CanNode_init() this will return a pointer
+ *to
  * an initilized node to be used with the other functions. Callbacks to occur on
- * messages from a particular id can be added to a node with the CanNode_addFilter()
+ * messages from a particular id can be added to a node with the
+ *CanNode_addFilter()
  * function. To translate [CanMessages](\ref CanMessage) to useful data, use the
  * getData functions. Data can be sent from a node with the sendData functions.
  *
@@ -35,10 +37,10 @@
  *
  * In order to send data and use filter callbacks you need to initilize a node.
  * to do this call CanNode_init(), passing in a CanNodeType (acts like an id), a
- * filterHandler for handling RTR (Retrun Transmission Request) callbacks for that node,
- * and a boolean value (it doesn't matter what) this returns a CanNode pointer to
- * a newly initilized CanNode struct. You can initilize up to \ref MAX_NODES nodes
- * in this way.
+ * filterHandler for handling RTR (Retrun Transmission Request) callbacks for
+ * that node, this returns a CanNode pointer to
+ * a newly initilized CanNode struct. You can initilize up to \ref MAX_NODES
+ * nodes in this way.
  *
  * Example code
  * ~~~~~~~~~~~~ {.c}
@@ -65,7 +67,7 @@
  * ### Adding filters ###
  *
  * This is how to add a filter for a single id
- * 
+ *
  * Example code
  *
  * ~~~~~~~~~~~~ {.c}
@@ -195,8 +197,8 @@ CanState CanNode_getDataArr_uint16(const CanMessage *msg, uint16_t data[2],
 //@}
 
 /**
- * \anchor nameFunctions
- * \name Name Functions
+ * \anchor infoFunctions 
+ * \name Info Functions
  * These functions handle names for the \ref CanNode_Module library. They allow
  * for providing a name and descriptive text for a node and requesting the same
  * information from another node.

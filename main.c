@@ -396,7 +396,7 @@ void MX_GPIO_Init(void) {
 #ifdef STING
   GPIO_InitStruct.Pin = IO2_Pin;
   HAL_GPIO_Init(IO2_GPIO_Port, &GPIO_InitStruct);
-#else if URBIE
+#elif URBIE
   GPIO_InitStruct.Pin = IO1_Pin;
   HAL_GPIO_Init(IO1_GPIO_Port, &GPIO_InitStruct);
 #endif
@@ -406,7 +406,7 @@ void MX_GPIO_Init(void) {
   /* EXTI4_15_IRQn interrupt configuration */
   HAL_NVIC_SetPriority(EXTI4_15_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI4_15_IRQn);
-#else if URBIE
+#elif URBIE
   // Urbie's interrupt is on EXIT 0
   HAL_NVIC_SetPriority(EXTI0_1_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(EXTI0_1_IRQn);
