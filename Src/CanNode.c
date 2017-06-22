@@ -1287,4 +1287,3 @@ static void CanNode_sendInfo(const CanNode *node) {
     can_tx(&msg, 5);
   }
 }
-
