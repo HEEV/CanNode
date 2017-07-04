@@ -8,15 +8,15 @@
  * \date 6-8-16
  */
 
-#include "CanNode/CanNode.h"
-#include <limits.h>
-#include <stdint.h>
-#include <stdlib.h>
+#include <climits>
+#include <cstdlib>
+#include <cstring>
 #include <stm32f0xx_hal.h>
-#include <string.h>
 
-#include "usb_device.h"
-#include "usbd_cdc_if.h"
+#include "CanNode/CanNode.h"
+#include <usbd_cdc.h>
+#include "Inc/usb_device.h"
+#include "Inc/usbd_cdc_if.h"
 
 // switch betwen Sting and Urbie
 #define URBIE

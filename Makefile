@@ -1,5 +1,6 @@
 # Put your STM32F4 library code directory here
 CAN_DIR=CanNode
+SRC_DIR=Src
 INC_DIR=Inc
 LIB_DIR=lib
 
@@ -14,6 +15,7 @@ TARGET=stm32f0xx
 # Put your source files here (or *.cflashing a hex file on a stm32f4discovery, etc)
 
 CAN_SRC := $(CAN_DIR)/*.cpp
+USR_SRC := $(SRC_DIR)/*.c
 STM_SRC := $(STM_LIB_SRC)/Src/$(TARGET)*.c
 STM_SRC += $(STM_USB_CORE)/Src/*.c
 STM_SRC += $(STM_USB_CDC)/Src/*.c
@@ -37,7 +39,7 @@ FLAGS += -Os -Wall -g
 FLAGS += --specs=nosys.specs -mthumb -mcpu=cortex-m0
 FLAGS += -TSTM32F042F6_FLASH.ld -fdata-sections -ffunction-sections -Wl,--gc-sections
 CFLAGS = --std=gnu11 $(FLAGS)
-CPPFLAGS = --std=c++11 $(FLAGS)
+CPPFLAGS = --std=gnu++11 $(FLAGS)
 
 # Include files from STM libraries
 INCLUDE += -I$(INC_DIR)
@@ -54,21 +56,24 @@ STM_OBJ += $(STARTUP:.s=.o)
 CAN_SRC_EXP := $(wildcard $(CAN_SRC))
 CAN_OBJ := $(CAN_SRC_EXP:.cpp=.o)
 
+SRC_EXP := $(wildcard $(USR_SRC))
+SRC_OBJ := $(SRC_EXP:.c=.o)
+
 .PHONY: clean all size
 
 .c.o:
-	$(CC) $(INCLUDE) $(CFLAGS) -c $< -o $@
+	$(CC) -c $(INCLUDE) $(CFLAGS)  $< -o $@
 
 .cpp.o:
-	$(CXX) $(INCLUDE) $(CPPFLAGS) -c $< -o $@
+	$(CXX) -c $(INCLUDE) $(CPPFLAGS)  $< -o $@
 
 .s.o:
-	$(CC) $(INCLUDE) $(CFLAGS) -c $< -o $@
+	$(CC) -c $(INCLUDE) $(CFLAGS)  $< -o $@
 
 all: main tags size
 
-main: $(CAN_OBJ) $(STM_OBJ) 
-	$(CC) $(CFLAGS) $(INCLUDE) main.cpp $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME).elf
+main: $(CAN_OBJ) $(SRC_OBJ) $(STM_OBJ) 
+	$(CXX) $(CPPFLAGS) $(INCLUDE) main.cpp $(SRC_OBJ) $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME).elf
 	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
 	
 CanNode: $(CAN_OBJ) $(STM_OBJ)
@@ -78,7 +83,7 @@ StmCore: $(STM_OBJ)
 	$(AR) rcs $(LIB_DIR)/libStmCore.a $^
 
 clean:
-	rm -f *.o $(CAN_OBJ) $(STM_OBJ) $(PROJ_NAME)*.elf $(PROJ_NAME)*.bin
+	rm -f *.o $(CAN_OBJ) $(STM_OBJ) $(SRC_OBJ) $(PROJ_NAME)*.elf $(PROJ_NAME)*.bin
 
 size: 
 	arm-none-eabi-size $(PROJ_NAME)*.elf
