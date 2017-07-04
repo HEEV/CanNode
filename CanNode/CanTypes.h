@@ -19,12 +19,12 @@
 
 #ifndef MAX_NODES
 /// Maximum number of nodes stored internally. Can be overwriten by redefinition
-#define MAX_NODES 4
+#define MAX_NODES 50
 #endif
 
 #ifndef NUM_FILTERS
 /// Number of filters each node can have. Can be overwriten by redefinition
-#define NUM_FILTERS 4
+#define NUM_FILTERS 10
 #endif
 
 /// Maximum length of a name string for the CanNode_getName()
@@ -119,12 +119,12 @@ typedef enum {
  * \brief Stucture for holding a CANBus message.
  *
  */
-typedef struct {
-  uint16_t id;     ///< ID of the sender
-  uint8_t len;     ///< Length of the message
-  uint8_t fmi;     ///< Filter mask index (what filter triggered message)
-  bool rtr;        ///< Asking for data (true) or sending data (false)
-  uint8_t data[8]; ///< Data
+typedef struct {                                                                                    
+  uint16_t id;     ///< ID of the sender                                                            
+  uint8_t len;     ///< Length of the message                                                       
+  uint8_t fmi;     ///< Filter mask index (what filter triggered message)                           
+  bool rtr;        ///< Asking for data (true) or sending data (false)                              
+  uint8_t data[8]; ///< Data                                                                        
 } CanMessage;
 
 /**
@@ -168,51 +168,6 @@ typedef enum {
   CAN_GET_INFO,     ///< Ask a node for its info (use CanNode_getInfo())
   CAN_NAME_INFO     ///< Message is part of a name/info message
 } CanNodeMsgType;
-
-/**
- * \typedef filterHandler
- * \brief Function pointer to a function that accepts a CanMessage pointer
- *
- * A function of this type should look like
- *
- * <code> void foo(CanMessage* msg) </code>
- *
- * Functions of this type can be used to handle filter matches. These functions
- * are added set to handle filters with the CanNode_addFilter() function. They
- * are
- * called by the CanNode_checkForMessages() function
- *
- * \see CanNode_addFilter
- * \see CanNode_checkForMessages
- */
-typedef void (*filterHandler)(CanMessage *data);
-
-/**
- * \struct CanNode
- * \brief Stucture for holding information about a CanNode
- *
- * Members should never be accessed directly, instead use functions in
- * the [CanNode library](\ref CanNode_Functions).
- *
- * \see CanNode.h
- * \see CanNode_init
- * \see CanNode_addFilter
- * \see CanNode_setName
- * \see CanNode_setInfo
- */
-typedef struct {
-  uint16_t id;                       ///< id of the node
-  uint8_t status;                    ///< status of the node (not currently used)
-  uint16_t filters[NUM_FILTERS];     ///< array of id's to handle
-  filterHandler rtrHandle;           ///< function to handle rtr requests for
-                                     /// the node
-
-  filterHandler handle[NUM_FILTERS]; ///< array of function pointers to call
-                                     ///< when a id in filters is found
-  CanNodeType sensorType;            ///< Type of sensor
-  const char *nameStr;                     ///< points to the name of the node
-  const char *infoStr;                     ///< points to the info string for the node
-} CanNode;
 
 //@}
 

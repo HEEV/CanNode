@@ -10,17 +10,14 @@
  * \date 6-20-16
  */
 
-#ifndef _CAN_H
-#define _CAN_H
+#ifndef _CAN_DRV_H
+#define _CAN_DRV_H
 
-/// value returned by can_add_filter functions if no filter was added
-#define CAN_FILTER_ERROR 0xFFFF
 
-#include <stm32f0xx.h>
-#include <stm32f0xx_hal.h>
-#include <stdint.h>
-#include <stdbool.h>
 #include "CanTypes.h"
+
+#define HAL_Delay(ms_delay) (usleep(ms_delay * 1000))
+uint32_t HAL_GetTick();
 
 /// \brief Initilize CAN hardware.
 void can_init(void);
