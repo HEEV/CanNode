@@ -28,7 +28,7 @@ PROJ_NAME=CanNode
 # Normally you shouldn't need to change anything below this line!
 #######################################################################################
 
-CC=arm-none-eabi-gcc
+CC=arm-none-eabi-g++
 CXX=arm-none-eabi-g++
 AR=arm-none-eabi-ar
 OBJCOPY=arm-none-eabi-objcopy
@@ -38,7 +38,7 @@ ODIR=obj
 FLAGS += -Os -Wall -g
 FLAGS += --specs=nosys.specs -mthumb -mcpu=cortex-m0
 FLAGS += -TSTM32F042F6_FLASH.ld -fdata-sections -ffunction-sections -Wl,--gc-sections
-CFLAGS = --std=gnu11 $(FLAGS)
+CFLAGS = --std=gnu++11 -fpermissive $(FLAGS)
 CPPFLAGS = --std=gnu++11 $(FLAGS)
 
 # Include files from STM libraries
