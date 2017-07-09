@@ -15,8 +15,8 @@
 
 #include "CanNode/CanNode.h"
 #include <usbd_cdc.h>
-#include "Inc/usb_device.h"
-#include "Inc/usbd_cdc_if.h"
+#include <usb_device.h>
+#include <usbd_cdc_if.h>
 
 // switch betwen Sting and Urbie
 #define URBIE
@@ -75,7 +75,7 @@ int main(void) {
   HAL_Init();
   // Configure the system clock
   SystemClock_Config();
-  MX_USB_DEVICE_Init();
+//  MX_USB_DEVICE_Init();
   // Initialize all configured peripherals
   MX_GPIO_Init();
 #ifdef STING
@@ -124,6 +124,7 @@ int main(void) {
       // We have sent the latest data, set to invalid data
       wheelTime = WHEEL_STOPPED;
     }
+    /*
     // do every 499ms to get at the wheelTime varible before it is reset
     if (USBConnected && time % 499 == 0) {
 
@@ -134,6 +135,7 @@ int main(void) {
       // setup the buffer with the required information
       // The data is sent in a CSV format like the following
       // RPS, Time per revolution in ms, ADC value
+      
       itoa(wheelCount, buff, 10);
       strcat(buff, ", ");
       CDC_Transmit_FS((uint8_t *)buff, strlen(buff));
@@ -149,8 +151,9 @@ int main(void) {
       strcat(buff, "\n\r");
 
       CDC_Transmit_FS((uint8_t *)buff, strlen(buff));
+      
     }
-
+    */
     // stuff to do every second
     if (time % 1000 == 0) {
       // send RPS data
@@ -164,9 +167,9 @@ int main(void) {
     }
     // every 30 seconds reset the CAN hardware
     if (time % 33333 == 0) {
-      CanNode::can_init();
-      CanNode::can_set_bitrate(CAN_BITRATE_500K);
-      CanNode::can_enable();
+      //CanNode::can_init();
+      //CanNode::can_set_bitrate(CAN_BITRATE_500K);
+      //CanNode::can_enable();
     }
     // make sure we don't run this code on the next loop
     HAL_Delay(1);

@@ -56,8 +56,8 @@ CanNode::CanNode(CanNodeType id, filterHandler rtrHandle) {
     nodes[i] = this;
 
     //clear the name and info pointers
-    nameStr=NULL;
-    infoStr=NULL;
+    nameStr=nullptr;
+    infoStr=nullptr;
 
     this->id = id;
     // add filters to hardware
@@ -97,7 +97,7 @@ CanNode::CanNode(CanNodeType id, filterHandler rtrHandle) {
  * \see can_add_filter_mask() for using mask filtering
  */
 bool CanNode::addFilter(uint16_t filter, filterHandler handle) {
-  if (filter > 0x7FF || handle == NULL) {
+  if (filter > 0x7FF || handle == nullptr) {
     return false;
   }
 
@@ -509,7 +509,7 @@ CanState CanNode::sendData(uint16_t *data, uint8_t len) const {
  */
 CanState CanNode::getData(const CanMessage *msg, int8_t *data) {
 
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -560,7 +560,7 @@ CanState CanNode::getData(const CanMessage *msg, int8_t *data) {
  */
 CanState CanNode::getData(const CanMessage *msg, uint8_t *data) {
 
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -610,7 +610,7 @@ CanState CanNode::getData(const CanMessage *msg, uint8_t *data) {
  */
 CanState CanNode::getData(const CanMessage *msg, int16_t *data) {
 
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -661,7 +661,7 @@ CanState CanNode::getData(const CanMessage *msg, int16_t *data) {
  */
 CanState CanNode::getData(const CanMessage *msg, uint16_t *data) {
 
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -712,7 +712,7 @@ CanState CanNode::getData(const CanMessage *msg, uint16_t *data) {
  */
 CanState CanNode::getData(const CanMessage *msg, int32_t *data) {
 
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -765,7 +765,7 @@ CanState CanNode::getData(const CanMessage *msg, int32_t *data) {
  */
 CanState CanNode::getData(const CanMessage *msg, uint32_t *data) {
 
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -825,7 +825,7 @@ CanState CanNode::getData(const CanMessage *msg, uint32_t *data) {
  * \see CanNode_getData_uint32()
  */
 CanState CanNode::getData(const CanMessage *msg, int8_t data[7], uint8_t *len) {
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -886,7 +886,7 @@ CanState CanNode::getData(const CanMessage *msg, int8_t data[7], uint8_t *len) {
  */
 CanState CanNode::getData(const CanMessage *msg, uint8_t data[7],
                           uint8_t *len) {
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -947,7 +947,7 @@ CanState CanNode::getData(const CanMessage *msg, uint8_t data[7],
  */
 CanState CanNode::getData(const CanMessage *msg, int16_t data[2],
                                   uint8_t *len) {
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 
@@ -1011,7 +1011,7 @@ CanState CanNode::getData(const CanMessage *msg, int16_t data[2],
  */
 CanState CanNode::getData(const CanMessage *msg, uint16_t data[2],
                           uint8_t *len) {
-  if (msg == NULL) {
+  if (msg == nullptr) {
     return DATA_ERROR;
   }
 

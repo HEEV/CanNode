@@ -17,9 +17,9 @@ TARGET=stm32f0xx
 CAN_SRC := $(CAN_DIR)/*.cpp
 USR_SRC := $(SRC_DIR)/*.c
 STM_SRC := $(STM_LIB_SRC)/Src/$(TARGET)*.c
+STM_SRC += $(CMSIS_STM32)/Source/Templates/system_$(TARGET).c
 STM_SRC += $(STM_USB_CORE)/Src/*.c
 STM_SRC += $(STM_USB_CDC)/Src/*.c
-STM_SRC += $(CMSIS_STM32)/Source/Templates/system_$(TARGET).c
 STARTUP := $(CMSIS_STM32)/Source/Templates/gcc/startup_stm32f042x6.s
 
 # Binaries will be generated with this name (.elf, .bin, .hex, etc)
@@ -28,7 +28,7 @@ PROJ_NAME=CanNode
 # Normally you shouldn't need to change anything below this line!
 #######################################################################################
 
-CC=arm-none-eabi-g++
+CC=arm-none-eabi-gcc
 CXX=arm-none-eabi-g++
 AR=arm-none-eabi-ar
 OBJCOPY=arm-none-eabi-objcopy
@@ -38,7 +38,7 @@ ODIR=obj
 FLAGS += -Os -Wall -g
 FLAGS += --specs=nosys.specs -mthumb -mcpu=cortex-m0
 FLAGS += -TSTM32F042F6_FLASH.ld -fdata-sections -ffunction-sections -Wl,--gc-sections
-CFLAGS = --std=gnu++11 -fpermissive $(FLAGS)
+CFLAGS = --std=gnu11  $(FLAGS)
 CPPFLAGS = --std=gnu++11 $(FLAGS)
 
 # Include files from STM libraries
@@ -72,8 +72,8 @@ SRC_OBJ := $(SRC_EXP:.c=.o)
 
 all: main tags size
 
-main: $(CAN_OBJ) $(SRC_OBJ) $(STM_OBJ) 
-	$(CXX) $(CPPFLAGS) $(INCLUDE) main.cpp $(SRC_OBJ) $(CAN_OBJ) $(STM_OBJ) -o $(PROJ_NAME).elf
+main: $(CAN_OBJ) $(SRC_OBJ) $(STM_OBJ) main.o
+	$(CXX) $(CPPFLAGS) $(INCLUDE) $(SRC_OBJ) $(CAN_OBJ) $(STM_OBJ) main.o -o $(PROJ_NAME).elf
 	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
 	
 CanNode: $(CAN_OBJ) $(STM_OBJ)
