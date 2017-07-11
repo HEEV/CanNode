@@ -150,6 +150,7 @@ void CanNode::sendData(int8_t data) const {
   // data
   msg.data[1] = (uint8_t)data;
   // set other odds and ends
+  msg.rtr = false;
   msg.len = 2;
   msg.id = this->id;
   can_tx(&msg, 5);
@@ -178,6 +179,7 @@ void CanNode::sendData(uint8_t data) const {
   msg.data[1] = data;
   // set other odds and ends
   msg.len = 2;
+  msg.rtr = false;
   msg.id = this->id;
   can_tx(&msg, 5);
 }
