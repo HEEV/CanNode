@@ -165,13 +165,6 @@ int main(void) {
       // blink heartbeat LED
       HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
     }
-    // every 30 seconds reset the CAN hardware
-    if (time % 33333 == 0) {
-      //CanNode::can_init();
-      //CanNode::can_set_bitrate(CAN_BITRATE_500K);
-      //CanNode::can_enable();
-    }
-    // make sure we don't run this code on the next loop
     HAL_Delay(1);
   }
 }
