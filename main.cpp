@@ -75,7 +75,7 @@ int main(void) {
   HAL_Init();
   // Configure the system clock
   SystemClock_Config();
-//  MX_USB_DEVICE_Init();
+  MX_USB_DEVICE_Init();
   // Initialize all configured peripherals
   MX_GPIO_Init();
 #ifdef STING
@@ -124,7 +124,6 @@ int main(void) {
       // We have sent the latest data, set to invalid data
       wheelTime = WHEEL_STOPPED;
     }
-    /*
     // do every 499ms to get at the wheelTime varible before it is reset
     if (USBConnected && time % 499 == 0) {
 
@@ -153,7 +152,6 @@ int main(void) {
       CDC_Transmit_FS((uint8_t *)buff, strlen(buff));
       
     }
-    */
     // stuff to do every second
     if (time % 1000 == 0) {
       // send RPS data
