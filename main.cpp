@@ -67,9 +67,6 @@ int main(void) {
   pitotVoltage = 0;
   USBConnected = false;
 
-  // local varibles
-  float voltage;
-  uint16_t adcVal;
 
   // Reset of all peripherals, Initializes the Flash interface and the Systick.
   HAL_Init();
@@ -100,10 +97,15 @@ int main(void) {
     // get the current time
     uint32_t time = HAL_GetTick();
 
-    // stuff to do every half second
+    // stuff to do every quarter second
     if (time % 250 == 0) {
 
 #ifdef STING
+      //Sting has a pitot tube and Urbie does not
+      // local varibles
+      float voltage;
+      uint16_t adcVal;
+
       // read ADC value
       HAL_ADC_Start(&hadc);
       HAL_ADC_PollForConversion(&hadc, 5);
@@ -124,7 +126,7 @@ int main(void) {
       // We have sent the latest data, set to invalid data
       wheelTime = WHEEL_STOPPED;
     }
-    // do every 499ms to get at the wheelTime varible before it is reset
+    // USB handling code (send data out USB port)
     if (USBConnected && time % 499 == 0) {
 
       // NOTE: the maximum buffer length is set in the
@@ -134,7 +136,6 @@ int main(void) {
       // setup the buffer with the required information
       // The data is sent in a CSV format like the following
       // RPS, Time per revolution in ms, ADC value
-      
       itoa(wheelCount, buff, 10);
       strcat(buff, ", ");
       CDC_Transmit_FS((uint8_t *)buff, strlen(buff));
@@ -143,8 +144,6 @@ int main(void) {
       strcat(buff, ", ");
       CDC_Transmit_FS((uint8_t *)buff, strlen(buff));
 
-      // debug check if pin is changing
-      // pitotVoltage = HAL_GPIO_ReadPin(IO1_GPIO_Port, IO1_Pin);
       itoa(pitotVoltage, buff, 10);
       // send a break between data sets
       strcat(buff, "\n\r");
@@ -163,6 +162,8 @@ int main(void) {
       // blink heartbeat LED
       HAL_GPIO_TogglePin(GPIOB, LED2_Pin);
     }
+
+    //make sure that the same code does not run twice
     HAL_Delay(1);
   }
 }
@@ -184,40 +185,24 @@ void pitotRTR(CanMessage *data) {
 /// callback for pin6 (IO1) interrupt
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   // when was our last pulse
-  static uint32_t startTime = 0;
-  static uint8_t oddPulse = 0;
+  static uint32_t startTime = 0; //static so that this remains through function calls
   // what is our current time
   uint32_t newTime = HAL_GetTick();
   // how long did this revolution take
   uint32_t tempTime = newTime - startTime;
 
-  // if the supposed time it takes for the wheel to go around is less than
-  // 31/32 of the last time then it is just bounce contact and should be
-  // ignored
-  /*
-  if(tempTime < wheelTime-(wheelTime>>5) ) {
-      return;
-  }
+  /* If the new time is less than DELAY_TIME (ms) than it was a fluke
    */
-
-  /* If the new time is less than 50ms than it was a fluke
-   */
-  if (tempTime < 60) {
+  const int DELAY_TIME = 60;
+  if (tempTime < DELAY_TIME) {
     return;
   }
-
-  // if the supposed time it takes for the wheel to go around is less than
-  // 3/4 of the last time then it is just bounce contact and should be
-  // ignored
-  // if(tempTime < wheelTime-(wheelTime>>2)) {
-  //    return;
-  //}
-
   // set the new start time
   startTime = wheelStartTime = newTime;
 
   wheelTime = tempTime; // Valid pulse, save the value
 #ifdef URBIE
+  static uint8_t oddPulse = 0;
   // multiply wheelTime by two (b/c two magnets per revolution)
   wheelTime = wheelTime << 1;
   // urbie has two magnets per wheel only half of pulses are a full revolution
@@ -235,6 +220,7 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
   HAL_GPIO_TogglePin(LED1_GPIO_Port, LED1_Pin);
 }
 
+// ----------------------- Automatically generated code -----------------------------------------
 /** System Clock Configuration
 */
 void SystemClock_Config(void) {
