@@ -12,20 +12,17 @@ bool CanNode::newMessage = false;
 CanMessage CanNode::tmpMsg;
 
 /**
- * Initilizes an empty CanNode structure to the values provided.
+ * Initilizes a CanNode object with and ID and a RTR function.
  *
- * This function basicaly uses the integer value of the \ref CanNodeType enum
- * passed to it to populate the id field of an internal CanNode structure. It
+ * This function uses the integer value of the \ref CanNodeType enum
+ * passed to it to provide an ID that is used to transmit messages. It
  * also populates the RTR callback from the provided function. Additional callbacks
- * are added by using the \ref CanNode_addFilter() function.
+ * are added by using the \ref CanNode_addFilter() function. The RTR function is used
+ * if a Remote Transmission Request is issued for the ID of the node.
  *
  * \param[in] id CAN Address, use the \ref CanNodeType type.
  * \param[in] rtrHandle function pointer to a handler function for rtr requests.
- * \param[in] force (depricated) Force the creation of a new node of the given paramaters
- * if an old one is not found in flash memory.
  *
- * \returns the address of a \ref CanNode struct that stores the can information.
- * This information is necessary for using any of the sendData functions
  */
 CanNode::CanNode(CanNodeType id, filterHandler rtrHandle) {
   static bool has_run = false;

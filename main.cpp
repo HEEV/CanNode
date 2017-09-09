@@ -87,7 +87,8 @@ int main(void) {
   CanNode wheel_time(WHEEL_TIME, timeRTR);
   wheelTimeNode = &wheel_time;
 #ifdef STING
-  //pitotNode = CanNode_init(PITOT, pitotRTR);
+  CanNode pitot(PITOT, pitotRTR);
+  pitotNode = &pitot;
 #endif
 
   while (1) {
@@ -118,7 +119,7 @@ int main(void) {
       pitotVoltage = (uint16_t)voltage; // put into an integer number
 
       // send the pitot voltage
-      CanNode_sendData_uint16(pitotNode, pitotVoltage);
+      pitotNode->sendData(pitotVoltage);
 #endif
 
       // send ammount of time per revolution

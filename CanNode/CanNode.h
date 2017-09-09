@@ -41,8 +41,8 @@ using std::uint32_t;
  * are
  * called by the CanNode_checkForMessages() function
  *
- * \see CanNode_addFilter
- * \see CanNode_checkForMessages
+ * \see CanNode::addFilter
+ * \see CanNode::checkForMessages
  */
 typedef void (*filterHandler)(CanMessage *data);
 
@@ -70,11 +70,13 @@ typedef void (*filterHandler)(CanMessage *data);
  * Example code
  * ~~~~~~~~~~~~ {.c}
  *
- * CanNode* newNode;
+ * //this allows you to access the node outside of the main function
+ * CanNode* newNodePtr; 
  * void pitotRTR(CanMessage* msg);
  *
  * void main(){
- *	newNode = CanNode_init(PITOT, pitotRTR);
+ *  CanNode newNode(PITOT, pitotRTR);
+ *	newNodePtr = &newNode;
  *	//other stuff here
  *	//...
  * }
@@ -83,7 +85,7 @@ typedef void (*filterHandler)(CanMessage *data);
  *	//continue to do what needs to be done.
  *	uint16_t data = getSensorData();
  *	//call one of the \ref sendData functions to return the data
- *	CanNode_sendData_uint16(newNode, data);
+ *	newNodePtr->sendData(data);
  * }
  * ~~~~~~~~~~~~
  *
@@ -96,11 +98,11 @@ typedef void (*filterHandler)(CanMessage *data);
  * Example code
  *
  * ~~~~~~~~~~~~ {.c}
- * CanNode* node;
+ * CanNode* nodePtr;
  * const uint16_t filterId = 1200;
  * //initilize node
  * //...
- * CanNode_addFilter(node, filterId, handler);
+ * nodePtr->addFilter(filterId, handler);
  * ~~~~~~~~~~~~
  *
  * This is how a filter mask is added (data from multiple ids).
@@ -108,11 +110,11 @@ typedef void (*filterHandler)(CanMessage *data);
  * Example code
  *
  * ~~~~~~~~~~~~ {.c}
- * CanNode* node;
+ * CanNode* nodePtr;
  * //initilize node
  * //...
  * uint16_t id = can_add_filter_mask(id_to_filter, id_mask);
- * CanNode_addFilter(node, id, handler);
+ * nodePtr->addFilter(id, handler);
  * ~~~~~~~~~~~~
  *@{
  */
@@ -195,10 +197,8 @@ public:
    * non-blocking. If the data is not of the same type as the called function
    * \ref INVALID_TYPE is returned.
    *
-   * These functions are useful for data parsing in a handler function of the
-   * type
-   * passed to CanNode_addFilter() where a CanMessage pointer is passed to the
-   * handler as input.
+   * These functions are useful for data parsing in a handler function, since a
+   * CanMessage is passed as an argument to the function.
    * @{
    */
   /// \brief Get a signed 8-bit integer from a CanMessage.
@@ -228,10 +228,8 @@ public:
    * \anchor infoFunctions
    * \name Info Functions
    * These functions handle names for the \ref CanNode_Module library. They
-   * allow
-   * for providing a name and descriptive text for a node and requesting the
-   * same
-   * information from another node.
+   * allow for providing a name and descriptive text for a node and requesting
+   * the same information from another node.
    * @{
    */
   /// \brief Set the name string
