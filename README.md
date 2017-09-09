@@ -37,10 +37,15 @@ Low level CANBus functions, interface with the hardware to provide can support.
 
 ### How do I get set up? ###
 
-make sure that gcc-arm-none-eabi is installed.
+make sure that gcc-arm-none-eabi is installed along with tools for flashing 
+the microcontroller.
 
 for a debian based disto
-sudo apt-get install gcc-arm-none-eabi
+`sudo apt-get install build-essential gcc-arm-none-eabi libnewlib-arm-none-eabi`
+
+Get tools for flashing
+`sudo apt-get install git cmake libusb-1.0-0-dev dfu-util`
+
 
 type make in the root directory to build the code.
 type make flash to upload to the board over the dfu bootloader (when board is in dfu mode).
