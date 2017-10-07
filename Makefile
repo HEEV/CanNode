@@ -59,7 +59,7 @@ CAN_OBJ := $(CAN_SRC_EXP:.cpp=.o)
 SRC_EXP := $(wildcard $(USR_SRC))
 SRC_OBJ := $(SRC_EXP:.c=.o)
 
-.PHONY: clean all size
+.PHONY: clean all size dfu
 
 .c.o:
 	$(CC) -c $(INCLUDE) $(CFLAGS)  $< -o $@
@@ -70,11 +70,13 @@ SRC_OBJ := $(SRC_EXP:.c=.o)
 .s.o:
 	$(CC) -c $(INCLUDE) $(CFLAGS)  $< -o $@
 
-all: main tags size
+all: main size dfu
 
 main: $(CAN_OBJ) $(SRC_OBJ) $(STM_OBJ) main.o
 	$(CXX) $(CPPFLAGS) $(INCLUDE) $(SRC_OBJ) $(CAN_OBJ) $(STM_OBJ) main.o -o $(PROJ_NAME).elf
 	$(OBJCOPY) -O binary $(PROJ_NAME).elf $(PROJ_NAME).bin
+	$(OBJCOPY) -O ihex $(PROJ_NAME).elf $(PROJ_NAME).hex
+
 	
 CanNode: $(CAN_OBJ) $(STM_OBJ)
 	$(AR) rcs $(LIB_DIR)/libCanNode.a $(STM_OBJ) $(CAN_OBJ)
@@ -87,6 +89,9 @@ clean:
 
 size: 
 	arm-none-eabi-size $(PROJ_NAME)*.elf
+
+dfu:
+	dfu-util
 
 tags: force_look
 	ctags -R *
