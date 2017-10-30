@@ -114,6 +114,11 @@ typedef enum {
   BUS_OFF        ///< The bus is off - call can_init() and can_enable()
 } CanState;
 
+
+static const unsigned int UNUSED_FILTER = 0xFFFF;
+/// value returned by can_add_filter functions if no filter was added
+static const unsigned int CAN_FILTER_ERROR = 0xFFFF;
+
 /**
  * \struct CanMessage
  * \brief Stucture for holding a CANBus message.

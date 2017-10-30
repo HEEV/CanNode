@@ -15,8 +15,8 @@
 
 
 #include "CanTypes.h"
+#include "platform.h"
 
-#define HAL_Delay(ms_delay) (usleep(ms_delay * 1000))
 uint32_t HAL_GetTick();
 
 /// \brief Initilize CAN hardware.

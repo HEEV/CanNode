@@ -15,7 +15,7 @@
 #define _CAN_NODE_H_
 
 #include "CanTypes.h"
-#include "platform.h"
+#include "can.h" // low level CAN driver
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
@@ -134,9 +134,6 @@ class CanNode {
 private:
   static bool newMessage;
   static CanMessage tmpMsg;
-  static const unsigned int UNUSED_FILTER = 0xFFFF;
-  /// value returned by can_add_filter functions if no filter was added
-  static const unsigned int CAN_FILTER_ERROR = 0xFFFF;
   static CanNode *nodes[MAX_NODES];
 
   uint16_t id;                   ///< id of the node
@@ -243,24 +240,6 @@ public:
   static void requestInfo(CanNodeType id, char *buff, uint8_t len,
                           uint16_t timeout);
 
-  //@}
-
-  /*@}*/
-
-  /*@}*/
-
-  /// \brief Add a filter to the can hardware with an id
-  static uint16_t can_add_filter_id(uint16_t id);
-  /// \brief Add a filter to the can hardware with a mask
-  static uint16_t can_add_filter_mask(uint16_t id, uint16_t mask);
-
-  /// \brief Send a CanMessage over the bus.
-  static CanState can_tx(CanMessage *tx_msg, uint32_t timeout);
-  /// \brief Get a CanMessage from the hardware if it is availible.
-  static CanState can_rx(CanMessage *rx_msg, uint32_t timeout);
-  /// \brief Check if a new message is avalible.
-  static bool is_can_msg_pending();
-
   // private functions to handle CanNode name functions
 
   /**
@@ -282,13 +261,5 @@ public:
   /// \brief Send a string
   static void sendString(uint16_t id, const char *str);
 
-  /// \brief Initilize CAN hardware.
-  static void can_init(void);
-  /// \brief Enable CAN hardware.
-  static void can_enable(void);
-  /// \brief Put CAN hardware to sleep.
-  static void can_sleep(void);
-  /// \brief Set the speed of the CANBus.
-  static void can_set_bitrate(canBitrate bitrate);
 };
 #endif //_CAN_NODE_H_

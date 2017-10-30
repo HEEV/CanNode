@@ -14,7 +14,7 @@ static uint8_t bs2;
 static CanState bus_state;
 static uint8_t num_msg;
 
-void CanNode::can_init(void) {
+void can_init(void) {
   // default to kbit/s
   can_set_bitrate(CAN_BITRATE_125K);
   hcan.Instance = CAN; // this is for convinience debugging
@@ -27,7 +27,7 @@ static inline void can_io_init() {
   HAL_CAN_MspInit(&hcan);
 }
 
-void CanNode::can_enable(void) {
+void can_enable(void) {
   if (bus_state == BUS_OFF) {
 
     // enable CAN clock
@@ -57,7 +57,7 @@ void CanNode::can_enable(void) {
   }
 }
 
-void CanNode::can_set_bitrate(canBitrate bitrate) {
+void can_set_bitrate(canBitrate bitrate) {
   // all these values were calculated from the equation given in the reference
   // manual for
   // finding the baudrate. They are calculated from an LibreOffice Calc
@@ -117,7 +117,7 @@ void CanNode::can_set_bitrate(canBitrate bitrate) {
  * \returns the filter number of the added filter returns \ref CAN_FILTER_ERROR
  * if the function was unable to add a filter.
  */
-uint16_t CanNode::can_add_filter_id(uint16_t id) {
+uint16_t can_add_filter_id(uint16_t id) {
     
   CAN_FilterConfTypeDef filter;
   uint8_t bank_num, fltr_num;
@@ -215,7 +215,7 @@ uint16_t CanNode::can_add_filter_id(uint16_t id) {
  * \returns the filter number of the added filter returns \ref CAN_FILTER_ERROR
  * if the function was unable to add a filter.
  */
-uint16_t CanNode::can_add_filter_mask(uint16_t id, uint16_t mask) {
+uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
   CAN_FilterConfTypeDef filter;
   uint8_t bank_num, fltr_num;
   const int MAX_FILTER = 12;
@@ -272,7 +272,7 @@ uint16_t CanNode::can_add_filter_mask(uint16_t id, uint16_t mask) {
   return CAN_FILTER_ERROR;
 }
 
-CanState CanNode::can_tx(CanMessage *tx_msg, uint32_t timeout) { 
+CanState can_tx(CanMessage *tx_msg, uint32_t timeout) { 
   uint8_t mailbox; // find an empty mailbox
   for (mailbox = 0; mailbox < 3; ++mailbox) {
     // check the status
@@ -310,7 +310,7 @@ CanState CanNode::can_tx(CanMessage *tx_msg, uint32_t timeout) {
   return BUS_OK;
 }
 
-CanState CanNode::can_rx(CanMessage *rx_msg, uint32_t timeout) {
+CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
 	uint8_t fifoNum = 0;
 
 	//check if there is data in fifo0
@@ -347,6 +347,6 @@ CanState CanNode::can_rx(CanMessage *rx_msg, uint32_t timeout) {
 	return BUS_OK;
 }
 
-bool CanNode::is_can_msg_pending() {
+bool is_can_msg_pending() {
 	return ((CAN->RF0R & CAN_RF0R_FMP0) > 0); //if there is no data
 }
