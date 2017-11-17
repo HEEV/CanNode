@@ -65,7 +65,7 @@ void can_enable(void) {
     bus_state = BUS_OK;
   }
                                        
-  HAL_GPIO_WritePin(CAN_EN_GPIO_Port, CAN_EN_Pin, GPIO_PIN_SET); 
+  HAL_GPIO_WritePin(CAN_EN_GPIO_Port, CAN_EN_Pin, GPIO_PIN_RESET); 
 }
 
 void can_set_bitrate(canBitrate bitrate) {
