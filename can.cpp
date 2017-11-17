@@ -23,6 +23,8 @@ void can_init(void) {
 }
 
 static inline void can_io_init() {
+  GPIO_InitTypeDef GPIO_InitStruct;
+  
   /*Configure GPIO pins : LED1_Pin LED2_Pin */                                                      
   GPIO_InitStruct.Pin = CAN_EN_Pin;                                                          
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;                                                       
