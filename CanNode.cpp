@@ -140,7 +140,7 @@ bool CanNode::addFilter(uint16_t filter, filterHandler handle) {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode::sendData(int8_t data) const {
+void CanNode::sendData_int8(int8_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_INT8) << 5) | (0x1F & CAN_DATA);
@@ -168,7 +168,7 @@ void CanNode::sendData(int8_t data) const {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode::sendData(uint8_t data) const {
+void CanNode::sendData_uint8(uint8_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_UINT8) << 5) | (0x1F & CAN_DATA);
@@ -196,7 +196,7 @@ void CanNode::sendData(uint8_t data) const {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode::sendData(int16_t data) const {
+void CanNode::sendData_int16(int16_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_INT16) << 5) | (0x1F & CAN_DATA);
@@ -225,7 +225,7 @@ void CanNode::sendData(int16_t data) const {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode::sendData(uint16_t data) const {
+void CanNode::sendData_uint16(uint16_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_UINT16) << 5) | (0x1F & CAN_DATA);
@@ -254,7 +254,7 @@ void CanNode::sendData(uint16_t data) const {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode::sendData(int32_t data) const {
+void CanNode::sendData_int32(int32_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_INT32) << 5) | (0x1F & CAN_DATA);
@@ -285,7 +285,7 @@ void CanNode::sendData(int32_t data) const {
  * \see CanNode_sendDataArr_uint8()
  * \see CanNode_sendDataArr_int16()
  */
-void CanNode::sendData(uint32_t data) const {
+void CanNode::sendData_uint32(uint32_t data) const {
   CanMessage msg;
   // configuration byte
   msg.data[0] = (uint8_t)((0x7 & CAN_UINT32) << 5) | (0x1F & CAN_DATA);
@@ -322,7 +322,7 @@ void CanNode::sendData(uint32_t data) const {
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
  */
-CanState CanNode::sendData(int8_t *data, uint8_t len) const {
+CanState CanNode::sendDataArr_int8(int8_t *data, uint8_t len) const {
   CanMessage msg;
   // check if valid
   if (len > 7) {
@@ -365,7 +365,7 @@ CanState CanNode::sendData(int8_t *data, uint8_t len) const {
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
  */
-CanState CanNode::sendData(uint8_t *data, uint8_t len) const {
+CanState CanNode::sendDataArr_uint8(uint8_t *data, uint8_t len) const {
   CanMessage msg;
   // check if valid
   if (len > 7) {
@@ -408,7 +408,7 @@ CanState CanNode::sendData(uint8_t *data, uint8_t len) const {
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
  */
-CanState CanNode::sendData(int16_t *data, uint8_t len) const {
+CanState CanNode::sendDataArr_int16(int16_t *data, uint8_t len) const {
   CanMessage msg;
   // check if valid
   if (len > 2) {
@@ -452,7 +452,7 @@ CanState CanNode::sendData(int16_t *data, uint8_t len) const {
  * \see CanNode_sendData_int32()
  * \see CanNode_sendData_uint32()
  */
-CanState CanNode::sendData(uint16_t *data, uint8_t len) const {
+CanState CanNode::sendDataArr_uint16(uint16_t *data, uint8_t len) const {
   CanMessage msg;
   // check if valid
   if (len > 2) {
@@ -506,7 +506,7 @@ CanState CanNode::sendData(uint16_t *data, uint8_t len) const {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, int8_t *data) {
+CanState CanNode::getData_int8(const CanMessage *msg, int8_t *data) {
 
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -557,7 +557,7 @@ CanState CanNode::getData(const CanMessage *msg, int8_t *data) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, uint8_t *data) {
+CanState CanNode::getData_uint8(const CanMessage *msg, uint8_t *data) {
 
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -607,7 +607,7 @@ CanState CanNode::getData(const CanMessage *msg, uint8_t *data) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, int16_t *data) {
+CanState CanNode::getData_int16(const CanMessage *msg, int16_t *data) {
 
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -658,7 +658,7 @@ CanState CanNode::getData(const CanMessage *msg, int16_t *data) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, uint16_t *data) {
+CanState CanNode::getData_uint16(const CanMessage *msg, uint16_t *data) {
 
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -709,7 +709,7 @@ CanState CanNode::getData(const CanMessage *msg, uint16_t *data) {
  * \see CanNode_getData_uint16()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, int32_t *data) {
+CanState CanNode::getData_int32(const CanMessage *msg, int32_t *data) {
 
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -762,7 +762,7 @@ CanState CanNode::getData(const CanMessage *msg, int32_t *data) {
  * \see CanNode_getData_uint16()
  * \see CanNode_getData_int32()
  */
-CanState CanNode::getData(const CanMessage *msg, uint32_t *data) {
+CanState CanNode::getData_uint32(const CanMessage *msg, uint32_t *data) {
 
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -823,7 +823,7 @@ CanState CanNode::getData(const CanMessage *msg, uint32_t *data) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, int8_t data[7], uint8_t *len) {
+CanState CanNode::getDataArr_int8(const CanMessage *msg, int8_t data[7], uint8_t *len) {
   if (msg == nullptr) {
     return DATA_ERROR;
   }
@@ -883,7 +883,7 @@ CanState CanNode::getData(const CanMessage *msg, int8_t data[7], uint8_t *len) {
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, uint8_t data[7],
+CanState CanNode::getDataArr_uint8(const CanMessage *msg, uint8_t data[7],
                           uint8_t *len) {
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -944,7 +944,7 @@ CanState CanNode::getData(const CanMessage *msg, uint8_t data[7],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, int16_t data[2],
+CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[2],
                                   uint8_t *len) {
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -1008,7 +1008,7 @@ CanState CanNode::getData(const CanMessage *msg, int16_t data[2],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getData(const CanMessage *msg, uint16_t data[2],
+CanState CanNode::getDataArr_uint16(const CanMessage *msg, uint16_t data[2],
                           uint8_t *len) {
   if (msg == nullptr) {
     return DATA_ERROR;

@@ -85,7 +85,7 @@ typedef void (*filterHandler)(CanMessage *data);
  *	//continue to do what needs to be done.
  *	uint16_t data = getSensorData();
  *	//call one of the \ref sendData functions to return the data
- *	newNodePtr->sendData(data);
+ *	newNodePtr->sendData_uint16_t(data);
  * }
  * ~~~~~~~~~~~~
  *
@@ -164,26 +164,26 @@ public:
    * @{
    */
   /// \brief Send a signed 8-bit integer.
-  void sendData(int8_t data) const;
+  void sendData_int8(int8_t data) const;
   /// \brief Send an unsigned 8-bit integer.
-  void sendData(uint8_t data) const;
+  void sendData_uint8(uint8_t data) const;
   /// \brief Send a signed 16-bit integer.
-  void sendData(int16_t data) const;
+  void sendData_int16(int16_t data) const;
   /// \brief Send an unsigned 16-bit integer.
-  void sendData(uint16_t data) const;
+  void sendData_uint16(uint16_t data) const;
   /// \brief Send a signed 32-bit integer.
-  void sendData(int32_t data) const;
+  void sendData_int32(int32_t data) const;
   /// \brief Send an unsigned 32-bit integer.
-  void sendData(uint32_t data) const;
+  void sendData_uint32(uint32_t data) const;
 
   /// \brief Send an array of uinsigned 8-bit integers.
-  CanState sendData(int8_t *data, uint8_t len) const;
+  CanState sendDataArr_int8(int8_t *data, uint8_t len) const;
   /// \brief Send an array of signed 8-bit integers.
-  CanState sendData(uint8_t *data, uint8_t len) const;
+  CanState sendDataArr_uint8(uint8_t *data, uint8_t len) const;
   /// \brief Send an array of uinsigned 16-bit integers.
-  CanState sendData(int16_t *data, uint8_t len) const;
+  CanState sendDataArr_int16(int16_t *data, uint8_t len) const;
   /// \brief Send an array of signed 16-bit integers.
-  CanState sendData(uint16_t *data, uint8_t len) const;
+  CanState sendDataArr_uint16(uint16_t *data, uint8_t len) const;
   //@}
 
   /**
@@ -199,26 +199,26 @@ public:
    * @{
    */
   /// \brief Get a signed 8-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, int8_t *data);
+  static CanState getData_int8(const CanMessage *msg, int8_t *data);
   /// \brief Get an unsigned 8-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint8_t *data);
+  static CanState getData_uint8(const CanMessage *msg, uint8_t *data);
   /// \brief Get a signed 16-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, int16_t *data);
+  static CanState getData_int16(const CanMessage *msg, int16_t *data);
   /// \brief Get an unsigned 16-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint16_t *data);
+  static CanState getData_uint16(const CanMessage *msg, uint16_t *data);
   /// \brief Get a signed 32-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, int32_t *data);
+  static CanState getData_int32(const CanMessage *msg, int32_t *data);
   /// \brief Get an unsigned 32-bit integer from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint32_t *data);
+  static CanState getData_uint32(const CanMessage *msg, uint32_t *data);
 
   /// \brief Get an array of signed 8-bit integers from a CanMessage.
-  static CanState getData(const CanMessage *msg, int8_t data[7], uint8_t *len);
+  static CanState getDataArr_int8(const CanMessage *msg, int8_t data[7], uint8_t *len);
   /// \brief Get an array of unsigned 8-bit integers from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint8_t data[7], uint8_t *len);
+  static CanState getDataArr_uint8(const CanMessage *msg, uint8_t data[7], uint8_t *len);
   /// \brief Get an array of signed 16-bit integers from a CanMessage.
-  static CanState getData(const CanMessage *msg, int16_t data[2], uint8_t *len);
+  static CanState getDataArr_int16(const CanMessage *msg, int16_t data[2], uint8_t *len);
   /// \brief Get an array of unsigned 16-bit integers from a CanMessage.
-  static CanState getData(const CanMessage *msg, uint16_t data[2], uint8_t *len);
+  static CanState getDataArr_uint16(const CanMessage *msg, uint16_t data[2], uint8_t *len);
   //@}
 
   /**
