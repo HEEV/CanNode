@@ -302,6 +302,30 @@ void CanNode::sendData_uint32(uint32_t data) const {
 }
 
 /**
+ * This function will send a CanMessage from a particular CanNode No type checking byte will be
+ * used. You can send whatever data you want with this, but you will have to know how to reconstruct
+ * it on the recieveing end. Use the other sendData functions for type checking.
+ *
+ * \param[in] Pointer to a CanMessage with the data, len, and rtr fields filled. 
+ *
+ * \see sendData_int8()
+ * \see sendData_uint8()
+ * \see sendData_int16()
+ * \see sendData_uint16()
+ * \see sendData_int32()
+ * \see sendData_uint32()
+ *
+ * \see sendDataArr_int8()
+ * \see sendDataArr_uint8()
+ * \see sendDataArr_uint8()
+ * \see sendDataArr_int16()
+ */
+void CanNode::sendData_custom(CanMessage* msg) {
+    msg.id = this->id;
+    can_tx(msg, 5);
+}
+
+/**
  * Sends an array of data over the CANBus.
  * Maximum size for the aray is 7 bytes.
  *
