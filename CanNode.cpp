@@ -320,8 +320,8 @@ void CanNode::sendData_uint32(uint32_t data) const {
  * \see sendDataArr_uint8()
  * \see sendDataArr_int16()
  */
-void CanNode::sendData_custom(CanMessage* msg) {
-    msg.id = this->id;
+void CanNode::sendData_custom(CanMessage* msg) const {
+    msg->id = this->id;
     can_tx(msg, 5);
 }
 
