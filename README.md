@@ -20,19 +20,27 @@ void main(void) {
   // ...
 }
 ```
-## Common functions
+## Common tasks
 1) Creating a CanNode
 ```cpp
 //outside of main
 CanNode* nodePtr;
+
+//handler function: returns void and takes a CanMessage pointer as an argument.
+void throttleRTR(CanMessage* msg);
+
 void main(void) {
   // stuff
   // ...
   
   // use standard C++ object initilization of an object
   // function parameters are the device type (This is an enum type defined in CanTypes.h)
-  // you can also cast an int to a CanNodeType.
+  // the second parameter is the name of a handler function for a RTR message.
   CanNode node(THROTTLE, throttleRTR);
+  
+  // you can also cast an int to a CanNodeType.
+  // CanNode node((CanNodeType) 350, throttleRTR);
+  
   //make a pointer to the node so that other functions can access it.
   nodePtr = &node;
 }
