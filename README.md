@@ -1,6 +1,6 @@
 # CanNode - STM32 CAN library:
 
-# How to use
+## How to use
 This repository should be used as a submodule in another project. For examples of projects using this library see 
 [HEEV/CanNodeProjects](https://github.com/HEEV/CanNodeProjects). 
 
@@ -20,4 +20,20 @@ void main(void) {
   // ...
 }
 ```
-
+## Common functions
+1) Creating a CanNode
+```cpp
+//outside of main
+CanNode* nodePtr;
+void main(void) {
+  // stuff
+  // ...
+  
+  // use standard C++ object initilization of an object
+  // function parameters are the device type (This is an enum type defined in CanTypes.h)
+  // you can also cast an int to a CanNodeType.
+  CanNode node(THROTTLE, throttleRTR);
+  //make a pointer to the node so that other functions can access it.
+  nodePtr = &node;
+}
+```
