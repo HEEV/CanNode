@@ -154,35 +154,36 @@ uint16_t can_add_filter_id(uint16_t id) {
         // id list
 
         filter.FilterNumber = bank_num;
+
         // if we are here then the first slot has already been filled
-        filter.FilterIdLow = CAN->sFilterRegister[bank_num].FR1;
+        filter.FilterMaskIdLow = (CAN->sFilterRegister[bank_num].FR1 >> 16) && 0xFFFF;
+        filter.FilterIdLow = CAN->sFilterRegister[bank_num].FR1 && 0xFFFF;
+
         ++fltr_num;
-
         // check if second slot has been filled
-        if (CAN->sFilterRegister[bank_num].FR1 >> 16) {
-          filter.FilterIdHigh = CAN->sFilterRegister[bank_num].FR1 >> 16;
-          ++fltr_num;
-        } else {
-          filter.FilterIdHigh = (id << 5);
+        if (filter.FilterIdLow == 0) {
+          filter.FilterIdLow = id;
           HAL_CAN_ConfigFilter(&hcan, &filter);
           return fltr_num;
-        }
+        } 
+        filter.FilterMaskIdHigh = (CAN->sFilterRegister[bank_num].FR2 >> 16) && 0xFFFF;
+        filter.FilterIdHigh = CAN->sFilterRegister[bank_num].FR2 && 0xFFFF;
 
-        if (CAN->sFilterRegister[bank_num].FR2) {
-          filter.FilterMaskIdLow = CAN->sFilterRegister[bank_num].FR2;
-          ++fltr_num;
-        } else {
-          filter.FilterMaskIdLow = (id << 5);
+        ++fltr_num;
+        // check if third slot has been filled
+        if (filter.FilterMaskIdHigh == 0) {
+          filter.FilterMaskIdHigh = id;
           HAL_CAN_ConfigFilter(&hcan, &filter);
           return fltr_num;
-        }
+        } 
 
-        if ((CAN->sFilterRegister[bank_num].FR2 >> 16) == 0) {
-          // last slot empty
-          filter.FilterMaskIdHigh = (id << 5);
+        ++fltr_num;
+        // check if fourth slot has been filled
+        if (filter.FilterIdHigh == 0) {
+          filter.FilterIdHigh = id;
           HAL_CAN_ConfigFilter(&hcan, &filter);
           return fltr_num;
-        }
+        } 
         // no empty slots incriment number, should be 4 greater than when
         // started
         ++fltr_num;
