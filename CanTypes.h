@@ -19,7 +19,7 @@
 
 #ifndef MAX_NODES
 /// Maximum number of nodes stored internally. Can be overwriten by redefinition
-#define MAX_NODES 50
+#define MAX_NODES 8
 #endif
 
 #ifndef NUM_FILTERS
@@ -57,6 +57,9 @@ typedef enum {
   THROTTLE = 900,     ///< throttle position (uint16)
   THROT_BODY = 904,   ///< throttle body servo
   TACT = 908,
+  STOP_SWITCH = 912,
+  START_SWITCH = 916,
+  KILL_SWITCH = 920,
 
   PRESSURE = 950,     ///< uint16
   PITOT = 950,        ///< Pitot Tube
@@ -76,8 +79,8 @@ typedef enum {
                      ///< Number of revolutions in the last second
   WHEEL_TIME = 1154, ///< Give the time taken for the last wheel revolution
                      ///< time is in mili-seconds.
-
-  LED = 1100,        ///< array of 4 uint8 RGBA
+  POWER_CTL = 1200,
+  LED = 1300,        ///< array of 4 uint8 RGBA
 } CanNodeType;
 
 /**
