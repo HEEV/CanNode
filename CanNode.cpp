@@ -320,7 +320,7 @@ void CanNode::sendData_uint32(uint32_t data) const {
  * \see sendDataArr_uint8()
  * \see sendDataArr_int16()
  */
-void CanNode::sendData_custom(CanMessage* msg) const {
+void CanNode::sendData_custom(CanMessage* msg) {
     msg->id = this->id;
     can_tx(msg, 5);
 }
@@ -1087,18 +1087,17 @@ void CanNode::checkForMessages() {
 
     // CanNode takes over if the caller asks for a reserved id
     // rtr request for node data
-    if (nodes[i] == nullptr) {
-        continue;
-    }
-    if (tmpMsg.id == nodes[i]->id && tmpMsg.rtr) {
+    if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->id && tmpMsg.rtr) {
       nodes[i]->rtrHandle(&tmpMsg);
     }
     // get name id if asked with an rtr
-    else if (tmpMsg.id == nodes[i]->id + 1 && tmpMsg.rtr) {
+    else if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->id + 1 &&
+             tmpMsg.rtr) {
       nodes[i]->sendName();
     }
     // get info id
-    else if (tmpMsg.id == nodes[i]->id + 2 && tmpMsg.rtr) {
+    else if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->id + 2 &&
+             tmpMsg.rtr) {
       nodes[i]->sendInfo();
     }
     // configuration id
@@ -1107,13 +1106,16 @@ void CanNode::checkForMessages() {
     else {
       // call callbacks for the user defined filters
       for (uint8_t j = 0; j < NUM_FILTERS; ++j) {
-        if (tmpMsg.id == nodes[i]->filters[j]) {
+        if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->filters[j] &&
+            nodes[i]->handle[j] != nullptr) {
 
           // call handler function
           nodes[i]->handle[j](&tmpMsg);
         }
         // check if the filter match equals a filter id
-        else if ( tmpMsg.fmi == nodes[i]->filters[j] ) { // filter matches
+        else if (nodes[i] != nullptr &&
+                 tmpMsg.fmi == nodes[i]->filters[j] && // filter matches
+                 nodes[i]->handle[j] != nullptr) {
 
           // call handler function
           nodes[i]->handle[j](&tmpMsg);

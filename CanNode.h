@@ -176,7 +176,7 @@ public:
   /// \brief Send an unsigned 32-bit integer.
   void sendData_uint32(uint32_t data) const;
   /// \brief Send a custom CanMessage.
-  void sendData_custom(CanMessage* data) const;
+  void sendData_custom(CanMessage* data);
 
   /// \brief Send an array of uinsigned 8-bit integers.
   CanState sendDataArr_int8(int8_t *data, uint8_t len) const;
