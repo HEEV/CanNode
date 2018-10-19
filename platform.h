@@ -1,6 +1,8 @@
 #ifndef _PLATFORM_CAN_H_
 #define _PLATFORM_CAN_H_
 
+#define STM32F3
+
 #ifdef STM32F0
 #include <stm32f0xx.h>
 #include <stm32f0xx_hal.h>
