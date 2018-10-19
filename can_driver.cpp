@@ -6,8 +6,6 @@
 
 
 #include "CanNode.h"
-#include "platform.h"
-#include <stm32f3xx_hal_can.h>
 
 static CAN_HandleTypeDef hcan;
 static uint16_t prescaler;
