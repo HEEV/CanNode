@@ -6,6 +6,8 @@
 
 
 #include "CanNode.h"
+#include "platform.h"
+#include <stm32f3xx_hal_can.h>
 
 static CAN_HandleTypeDef hcan;
 static uint16_t prescaler;
@@ -130,7 +132,7 @@ void can_set_bitrate(canBitrate bitrate) {
  */
 uint16_t can_add_filter_id(uint16_t id) {
     
-  CAN_FilterConfTypeDef filter;
+  CAN_FilterTypeDef filter;
   uint8_t bank_num, fltr_num;
   const int MAX_FILTER = 12;
 
@@ -141,8 +143,8 @@ uint16_t can_add_filter_id(uint16_t id) {
   filter.FilterMaskIdHigh = 0;
   filter.FilterMode = CAN_FILTERMODE_IDLIST;
   filter.FilterScale = CAN_FILTERSCALE_16BIT;
-  filter.FilterFIFOAssignment = CAN_FIFO0;
-  filter.BankNumber = 0;
+  filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  filter.FilterBank = 0;
   filter.FilterActivation = ENABLE;
 
   // loop through filter banks to find an empty filter register
@@ -153,7 +155,7 @@ uint16_t can_add_filter_id(uint16_t id) {
       if (CAN->FM1R & (1 << bank_num)) {
         // id list
 
-        filter.FilterNumber = bank_num;
+        filter.FilterBank = bank_num;
 
         // if we are here then the first slot has already been filled
         filter.FilterMaskIdLow = (CAN->sFilterRegister[bank_num].FR1 >> 16) && 0xFFFF;
@@ -195,7 +197,7 @@ uint16_t can_add_filter_id(uint16_t id) {
     } else {
 
       filter.FilterIdLow = (id << 5);
-      filter.FilterNumber = bank_num;
+      filter.FilterBank = bank_num;
 
       HAL_CAN_ConfigFilter(&hcan, &filter);
       // return the filter number
@@ -228,7 +230,7 @@ uint16_t can_add_filter_id(uint16_t id) {
  * if the function was unable to add a filter.
  */
 uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
-  CAN_FilterConfTypeDef filter;
+  CAN_FilterTypeDef filter;
   uint8_t bank_num, fltr_num;
   const int MAX_FILTER = 12;
 
@@ -239,8 +241,8 @@ uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
   filter.FilterMaskIdHigh = 0;
   filter.FilterMode = CAN_FILTERMODE_IDMASK;
   filter.FilterScale = CAN_FILTERSCALE_16BIT;
-  filter.FilterFIFOAssignment = CAN_FIFO0;
-  filter.BankNumber = 0;
+  filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  filter.FilterBank = 0;
   filter.FilterActivation = ENABLE;
 
   // loop through filter banks to find an empty filter register
@@ -273,7 +275,7 @@ uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
 
       filter.FilterIdLow = (id << 5);
       filter.FilterIdHigh = (mask << 5);
-      filter.FilterNumber = bank_num;
+      filter.FilterBank = bank_num;
 
       HAL_CAN_ConfigFilter(&hcan, &filter);
       // return the filter number
