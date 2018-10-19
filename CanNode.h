@@ -14,12 +14,12 @@
 #ifndef _CAN_NODE_H_
 #define _CAN_NODE_H_
 
-#include "CanTypes.h"
-#include "can.h" // low level CAN driver
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <cstdbool>
+#include "CanTypes.h"
+#include "can_driver.h" // low level CAN driver
 
 using std::int8_t;
 using std::uint8_t;
