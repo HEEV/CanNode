@@ -53,8 +53,9 @@ CanNode::CanNode(CanNodeType id, filterHandler rtrHandle) {
     nodes[i] = this;
 
     //clear the name and info pointers
-    nameStr=nullptr;
-    infoStr=nullptr;
+    this->nameStr=nullptr;
+    this->infoStr=nullptr;
+    this->rtrHandle = rtrHandle;
 
     this->id = id;
     // add filters to hardware
