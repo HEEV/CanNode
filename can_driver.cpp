@@ -23,15 +23,19 @@ void can_init(void) {
 }
 
 static inline void can_io_init() {
+
+  /*
   GPIO_InitTypeDef GPIO_InitStruct;
   
-  /*Configure GPIO pins : LED1_Pin LED2_Pin */                                                      
+  //Configure GPIO pins : LED1_Pin LED2_Pin                                                       
   GPIO_InitStruct.Pin = CAN_EN_Pin;                                                          
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;                                                       
   GPIO_InitStruct.Pull = GPIO_NOPULL;                                                               
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;                                                      
 
   HAL_GPIO_Init(CAN_EN_GPIO_Port, &GPIO_InitStruct); 
+  */
+
   // call function defined for us by the stmCubeMX program
   HAL_CAN_MspInit(&hcan);
 }
@@ -65,7 +69,7 @@ void can_enable(void) {
     bus_state = BUS_OK;
   }
                                        
-  HAL_GPIO_WritePin(CAN_EN_GPIO_Port, CAN_EN_Pin, GPIO_PIN_RESET); 
+  //HAL_GPIO_WritePin(CAN_EN_GPIO_Port, CAN_EN_Pin, GPIO_PIN_RESET); 
 }
 
 void can_set_bitrate(canBitrate bitrate) {
