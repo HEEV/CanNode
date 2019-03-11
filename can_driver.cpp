@@ -77,6 +77,7 @@ void can_set_bitrate(canBitrate bitrate) {
   // manual for
   // finding the baudrate. They are calculated from an LibreOffice Calc
   // spreadsheet for a 16MHZ clock
+#ifndef STM32F3
   switch (bitrate) {
   case CAN_BITRATE_10K:
     prescaler = 159;
@@ -124,6 +125,57 @@ void can_set_bitrate(canBitrate bitrate) {
     bs2 = 3;
     break;
   }
+#endif
+// used the same spreadsheet for a 24MHz clock
+#ifdef STM32F3
+  switch (bitrate) {
+  case CAN_BITRATE_10K:
+    prescaler = 479;
+    bs1 = 2;
+    bs2 = 0;
+    break;
+  case CAN_BITRATE_20K:
+    prescaler = 149;
+    bs1 = 4;
+    bs2 = 1;
+    break;
+  case CAN_BITRATE_50K:
+    prescaler = 95;
+    bs1 = 2;
+    bs2 = 0;
+    break;
+  case CAN_BITRATE_100K:
+    prescaler = 23;
+    bs1 = 4;
+    bs2 = 3;
+    break;
+  case CAN_BITRATE_125K:
+    prescaler = 31;
+    bs1 = 3;
+    bs2 = 0;
+    break;
+  case CAN_BITRATE_250K:
+    prescaler = 23;
+    bs1 = 0;
+    bs2 = 1;
+    break;
+  case CAN_BITRATE_500K:
+    prescaler = 5;
+    bs1 = 2;
+    bs2 = 3;
+    break;
+  case CAN_BITRATE_750K:
+    prescaler = 3;
+    bs1 = 4;
+    bs2 = 1;
+    break;
+  case CAN_BITRATE_1000K:
+    prescaler = 2;
+    bs1 = 5;
+    bs2 = 0;
+    break;
+  }
+#endif
 }
 
 /**
