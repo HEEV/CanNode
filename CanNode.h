@@ -218,9 +218,9 @@ public:
   /// \brief Get an array of unsigned 8-bit integers from a CanMessage.
   static CanState getDataArr_uint8(const CanMessage *msg, uint8_t data[7], uint8_t *len);
   /// \brief Get an array of signed 16-bit integers from a CanMessage.
-  static CanState getDataArr_int16(const CanMessage *msg, int16_t data[2], uint8_t *len);
+  static CanState getDataArr_int16(const CanMessage *msg, int16_t data[3], uint8_t *len);
   /// \brief Get an array of unsigned 16-bit integers from a CanMessage.
-  static CanState getDataArr_uint16(const CanMessage *msg, uint16_t data[2], uint8_t *len);
+  static CanState getDataArr_uint16(const CanMessage *msg, uint16_t data[3], uint8_t *len);
   //@}
 
   /**

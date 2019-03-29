@@ -199,7 +199,7 @@ uint16_t can_add_filter_id(uint16_t id) {
   filter.FilterScale = CAN_FILTERSCALE_16BIT;
   filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
   filter.FilterBank = 0;
-  filter.FilterActivation = ENABLE;
+  filter.FilterActivation = CAN_FILTER_ENABLE;
 
   // loop through filter banks to find an empty filter register
   for (fltr_num = bank_num = 0; bank_num < MAX_FILTER; bank_num++) {

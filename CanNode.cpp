@@ -969,7 +969,7 @@ CanState CanNode::getDataArr_uint8(const CanMessage *msg, uint8_t data[7],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[2],
+CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[3],
                                   uint8_t *len) {
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -977,7 +977,7 @@ CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[2],
 
   // check configuration byte
   if ((msg->data[0] >> 5) != CAN_INT16 ||  // not right type
-      msg->len > 3 ||                      // not right length
+      msg->len > 7 ||                      // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -1033,7 +1033,7 @@ CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[2],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getDataArr_uint16(const CanMessage *msg, uint16_t data[2],
+CanState CanNode::getDataArr_uint16(const CanMessage *msg, uint16_t data[3],
                           uint8_t *len) {
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -1041,7 +1041,7 @@ CanState CanNode::getDataArr_uint16(const CanMessage *msg, uint16_t data[2],
 
   // check configuration byte
   if ((msg->data[0] >> 5) != CAN_UINT16 || // not right type
-      msg->len > 3 ||                      // not right length
+      msg->len > 7 ||                      // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -1079,6 +1079,7 @@ void CanNode::checkForMessages() {
 
   // if there are no new messages don't do anything
   if (!is_can_msg_pending()) {
+    HAL_GPIO_TogglePin(User_LED_GPIO_Port, User_LED_Pin);
     return;
   }
 
@@ -1109,7 +1110,6 @@ void CanNode::checkForMessages() {
       // call callbacks for the user defined filters
       for (uint8_t j = 0; j < NUM_FILTERS; ++j) {
         if (tmpMsg.id == nodes[i]->filters[j]) {
-
           // call handler function
           nodes[i]->handle[j](&tmpMsg);
         }
