@@ -133,8 +133,9 @@ class CanNode {
 
 private:
   static bool newMessage;
-  static CanMessage tmpMsg;
+  static uint8_t filter_bank;
   static CanNode *nodes[MAX_NODES];
+  static CanMessage tmpMsg;
 
   uint16_t id;                   ///< id of the node
   uint8_t status;                ///< status of the node (not currently used)
@@ -149,12 +150,39 @@ private:
   const char *infoStr;               ///< points to the info string for the node
 
 public:
-  /// \brief Initilize a CanNode from given parameters.
-  CanNode(CanNodeType id, filterHandler rtrHandle);
+  /**
+   * Initilizes a CanNode object with and ID and a RTR function.
+   *
+   * This function uses the integer value of the \ref CanNodeType enum
+   * passed to it to provide an ID that is used to transmit messages. It
+   * also populates the RTR callback from the provided function. Additional callbacks
+   * are added by using the \ref CanNode_addFilter() function. The RTR function is used
+   * if a Remote Transmission Request is issued for the ID of the node.
+   *
+   * \param[in] id CAN Address, use the \ref CanNodeType type.
+   * \param[in] rtrHandle function pointer to a handler function for rtr requests.
+   *
+   */
+  CanNode(uint16_t id, filterHandler rtrHandle);
+
   /// \brief Add a filter and handler to a given CanNode.
-  bool addFilter(uint16_t filter, filterHandler handle);
+  bool addFilter_id(filter_id_t id1,
+                    filter_id_t id2,
+                    filter_id_t id3,
+                    filter_id_t id4,
+                    filterHandler handle1,
+                    filterHandler handle2 = nullptr,
+                    filterHandler handle3 = nullptr,
+                    filterHandler handle4 = nullptr);
+
+  bool addFilter_mask(filter_id_mask_t id1,
+                      filter_id_mask_t id2,
+                      filterHandler handle1,
+                      filterHandler handle2 = nullptr);
+
   /// \brief Check all initilized CanNodes for messages and call callbacks.
   static void checkForMessages();
+  static bool updateMessage(CanMessage* msg);
 
   /**
    * \anchor sendData

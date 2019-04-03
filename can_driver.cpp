@@ -6,8 +6,8 @@
 
 
 #include "CanNode.h"
+#include "can.h"
 
-static CAN_HandleTypeDef hcan;
 static uint16_t prescaler;
 static uint8_t bs1;
 static uint8_t bs2;
@@ -15,61 +15,9 @@ static CanState bus_state;
 static uint8_t num_msg;
 
 void can_init(void) {
-  // default to kbit/s
-  can_set_bitrate(CAN_BITRATE_125K);
-  hcan.Instance = CAN; // this is for convinience debugging
-  num_msg = 0;
-  bus_state = BUS_OFF;
-}
-
-static inline void can_io_init() {
-
-  /*
-  GPIO_InitTypeDef GPIO_InitStruct;
-  
-  //Configure GPIO pins : LED1_Pin LED2_Pin                                                       
-  GPIO_InitStruct.Pin = CAN_EN_Pin;                                                          
-  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;                                                       
-  GPIO_InitStruct.Pull = GPIO_NOPULL;                                                               
-  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;                                                      
-
-  HAL_GPIO_Init(CAN_EN_GPIO_Port, &GPIO_InitStruct); 
-  */
-
-  // call function defined for us by the stmCubeMX program
-  HAL_CAN_MspInit(&hcan);
-}
-
-void can_enable(void) {
-  if (bus_state == BUS_OFF) {
-
-    // enable CAN clock
-    RCC->APB1ENR |= RCC_APB1ENR_CANEN;
-    can_io_init();
-
-    // Enter CAN init mode to write the configuration
-    CAN->MCR |= CAN_MCR_INRQ;
-    // Wait for the hardware to initilize
-    while ((CAN->MSR & CAN_MSR_INAK) != CAN_MSR_INAK)
-      ;
-    // Exit sleep mode
-    CAN->MCR &= ~CAN_MCR_SLEEP;
-    // Setup timing: BS1 and BS2 are set in can_set_bitrate().
-    // The prescalar is set to whatever it was set to from can_set_bitrate()
-    CAN->BTR = bs2 << 20 | bs1 << 16 | prescaler;
-
-    CAN->MCR &= ~CAN_MCR_INRQ; /* Leave init mode */
-    /* Wait the init mode leaving */
-    while ((CAN->MSR & CAN_MSR_INAK) == CAN_MSR_INAK)
-      ;
-
-    /* Set FIFO0 message pending IT enable */
-    // CAN->IER |= CAN_IER_FMPIE0;
-
-    bus_state = BUS_OK;
-  }
-                                       
-  //HAL_GPIO_WritePin(CAN_EN_GPIO_Port, CAN_EN_Pin, GPIO_PIN_RESET); 
+  MX_CAN_Init();
+  HAL_CAN_ActivateNotification(&hcan, CAN_IER_FMPIE0 | CAN_IER_FMPIE1);
+  HAL_CAN_Start(&hcan);
 }
 
 void can_set_bitrate(canBitrate bitrate) {
@@ -109,6 +57,8 @@ void can_set_bitrate(canBitrate bitrate) {
     bs1 = 1;
     bs2 = 4;
     break;
+
+  default:
   case CAN_BITRATE_500K:
     prescaler = 1;
     bs1 = 7;
@@ -159,6 +109,8 @@ void can_set_bitrate(canBitrate bitrate) {
     bs1 = 0;
     bs2 = 1;
     break;
+
+  default:
   case CAN_BITRATE_500K:
     prescaler = 5;
     bs1 = 2;
@@ -178,90 +130,70 @@ void can_set_bitrate(canBitrate bitrate) {
 #endif
 }
 
+// get the starting fmi (filter mask index) of the bank spefied
+// warning, direct hardware access ahead
+uint8_t get_fmi_cnt(uint8_t filter_bank)
+{
+  // TODO actually count the number of filters
+  return filter_bank*4;
+}
+
 /**
  * \param id id to filter on 
  *
  * \returns the filter number of the added filter returns \ref CAN_FILTER_ERROR
  * if the function was unable to add a filter.
  */
-uint16_t can_add_filter_id(uint16_t id) {
-    
+/// \brief Add a filter to the can hardware with an id
+fmi_ret_t can_add_filter_id(filter_id_t id1,
+                            filter_id_t id2,
+                            filter_id_t id3,
+                            filter_id_t id4,
+                            uint8_t filter_bank)
+{
+
   CAN_FilterTypeDef filter;
-  uint8_t bank_num, fltr_num;
   const int MAX_FILTER = 12;
+  const uint16_t BAD_FMI = 0xF;
+  if (filter_bank > MAX_FILTER) {
+    return {
+      BAD_FMI, 
+      BAD_FMI, 
+      BAD_FMI, 
+      BAD_FMI 
+    };
+  }
+
+  // setup the filters as specified in the datasheet
+  auto id_to_hw = [](filter_id_t &id) -> uint32_t 
+  {
+    return (id.id << 5) | ( (id.id_rtr ? 1 : 0) << 4 );
+  };
 
   // mostly setup filter
-  filter.FilterIdLow = 0;
-  filter.FilterIdHigh = 0;
-  filter.FilterMaskIdLow = 0;
-  filter.FilterMaskIdHigh = 0;
+  filter.FilterIdLow      = id_to_hw(id1);
+  filter.FilterIdHigh     = id_to_hw(id2);
+  filter.FilterMaskIdLow  = id_to_hw(id3);
+  filter.FilterMaskIdHigh = id_to_hw(id4);
   filter.FilterMode = CAN_FILTERMODE_IDLIST;
   filter.FilterScale = CAN_FILTERSCALE_16BIT;
   filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-  filter.FilterBank = 0;
+  filter.FilterBank = filter_bank;
   filter.FilterActivation = ENABLE;
 
-  // loop through filter banks to find an empty filter register
-  for (fltr_num = bank_num = 0; bank_num < MAX_FILTER; bank_num++) {
-    // this is a register currently in use, check if there is any openings
-    if (CAN->FA1R & (1 << bank_num)) {
-      // check if bank is using a mask or a id list
-      if (CAN->FM1R & (1 << bank_num)) {
-        // id list
-
-        filter.FilterBank = bank_num;
-
-        // if we are here then the first slot has already been filled
-        filter.FilterMaskIdLow = (CAN->sFilterRegister[bank_num].FR1 >> 16) && 0xFFFF;
-        filter.FilterIdLow = CAN->sFilterRegister[bank_num].FR1 && 0xFFFF;
-
-        ++fltr_num;
-        // check if second slot has been filled
-        if (filter.FilterIdLow == 0) {
-          filter.FilterIdLow = id;
-          HAL_CAN_ConfigFilter(&hcan, &filter);
-          return fltr_num;
-        } 
-        filter.FilterMaskIdHigh = (CAN->sFilterRegister[bank_num].FR2 >> 16) && 0xFFFF;
-        filter.FilterIdHigh = CAN->sFilterRegister[bank_num].FR2 && 0xFFFF;
-
-        ++fltr_num;
-        // check if third slot has been filled
-        if (filter.FilterMaskIdHigh == 0) {
-          filter.FilterMaskIdHigh = id;
-          HAL_CAN_ConfigFilter(&hcan, &filter);
-          return fltr_num;
-        } 
-
-        ++fltr_num;
-        // check if fourth slot has been filled
-        if (filter.FilterIdHigh == 0) {
-          filter.FilterIdHigh = id;
-          HAL_CAN_ConfigFilter(&hcan, &filter);
-          return fltr_num;
-        } 
-        // no empty slots incriment number, should be 4 greater than when
-        // started
-        ++fltr_num;
-
-      } else {
-        // add the number of filters in an id-mask to the filter number
-        fltr_num += 2;
-      }
-    } else {
-
-      filter.FilterIdLow = (id << 5);
-      filter.FilterBank = bank_num;
-
-      HAL_CAN_ConfigFilter(&hcan, &filter);
-      // return the filter number
-      return fltr_num;
-    }
-  }
-
-  return CAN_FILTER_ERROR;
+  HAL_CAN_ConfigFilter(&hcan, &filter);
+  
+  // TODO use the 
+  auto base_ret = get_fmi_cnt(filter_bank);
+  return {
+    static_cast<uint16_t>(base_ret), 
+    static_cast<uint16_t>(base_ret+1), 
+    static_cast<uint16_t>(base_ret+2), 
+    static_cast<uint16_t>(base_ret+3) 
+  };
 }
 
+/// \brief Add a filter to the can hardware with a mask
 /**
  * *NOTE:
  * This function takes some finagleing in order for it to work correctly with
@@ -283,64 +215,27 @@ uint16_t can_add_filter_id(uint16_t id) {
  * \returns the filter number of the added filter returns \ref CAN_FILTER_ERROR
  * if the function was unable to add a filter.
  */
-uint16_t can_add_filter_mask(uint16_t id, uint16_t mask) {
-  CAN_FilterTypeDef filter;
-  uint8_t bank_num, fltr_num;
-  const int MAX_FILTER = 12;
+fmi_ret_t can_add_filter_mask(filter_id_mask_t id1,
+                              filter_id_mask_t id2,
+                              uint8_t filter_bank)
+{
 
-  // mostly setup filter
-  filter.FilterIdLow = 0;
-  filter.FilterIdHigh = 0;
-  filter.FilterMaskIdLow = 0;
-  filter.FilterMaskIdHigh = 0;
-  filter.FilterMode = CAN_FILTERMODE_IDMASK;
-  filter.FilterScale = CAN_FILTERSCALE_16BIT;
-  filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
-  filter.FilterBank = 0;
-  filter.FilterActivation = ENABLE;
+  UNUSED(id1);
+  UNUSED(id2);
+  UNUSED(filter_bank);
+  const uint16_t BAD_FMI = 0xF;
+  uint8_t base_ret = 0;
 
-  // loop through filter banks to find an empty filter register
-  for (fltr_num = bank_num = 0; bank_num < MAX_FILTER; bank_num++) {
-    // this is a register currently in use, check if there is any openings
-    if (CAN->FA1R & (1 << bank_num)) {
-      // check if bank is using a mask or a id list
-      if ((CAN->FM1R & (1 << bank_num)) == 0) {
-        // id mask
-
-        // if we are here then the first slot has been taken. fill it
-        // from the registers
-        filter.FilterIdLow = CAN->sFilterRegister[bank_num].FR1;
-        filter.FilterIdHigh = (CAN->sFilterRegister[bank_num].FR1 >> 16);
-
-        // incriment filter index
-        ++fltr_num;
-
-        // fill the new slot
-        filter.FilterMaskIdLow = (id << 5);
-        filter.FilterMaskIdHigh = (mask << 5);
-
-        // configure it
-        HAL_CAN_ConfigFilter(&hcan, &filter);
-      } else {
-        // add the number of filters in an id-list to the filter number
-        fltr_num += 4;
-      }
-    } else {
-
-      filter.FilterIdLow = (id << 5);
-      filter.FilterIdHigh = (mask << 5);
-      filter.FilterBank = bank_num;
-
-      HAL_CAN_ConfigFilter(&hcan, &filter);
-      // return the filter number
-      return fltr_num;
-    }
-  }
-
-  return CAN_FILTER_ERROR;
+  return {
+    static_cast<uint16_t>(base_ret), 
+    static_cast<uint16_t>(base_ret+1), 
+    static_cast<uint16_t>(BAD_FMI), 
+    static_cast<uint16_t>(BAD_FMI) 
+  };
 }
 
 CanState can_tx(CanMessage *tx_msg, uint32_t timeout) { 
+  UNUSED(timeout);
   uint8_t mailbox; // find an empty mailbox
   for (mailbox = 0; mailbox < 3; ++mailbox) {
     // check the status
@@ -379,6 +274,7 @@ CanState can_tx(CanMessage *tx_msg, uint32_t timeout) {
 }
 
 CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
+  UNUSED(timeout);
 	uint8_t fifoNum = 0;
 
 	//check if there is data in fifo0

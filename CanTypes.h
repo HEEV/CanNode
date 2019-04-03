@@ -24,7 +24,7 @@
 
 #ifndef NUM_FILTERS
 /// Number of filters each node can have. Can be overwriten by redefinition
-#define NUM_FILTERS 10
+#define NUM_FILTERS 12
 #endif
 
 /// Maximum length of a name string for the CanNode_getName()
@@ -134,6 +134,23 @@ typedef struct {
   bool rtr;        ///< Asking for data (true) or sending data (false)                              
   uint8_t data[8]; ///< Data                                                                        
 } CanMessage;
+
+typedef struct {
+  uint16_t id;
+  bool id_rtr;
+} filter_id_t;
+
+typedef struct {
+  filter_id_t filter_id;
+  filter_id_t mask_id;
+} filter_id_mask_t;
+
+typedef struct {
+  uint16_t id1_fmi : 4;
+  uint16_t id2_fmi : 4;
+  uint16_t id3_fmi : 4;
+  uint16_t id4_fmi : 4;
+} fmi_ret_t;
 
 /**
  * \enum CanNodeDataType
