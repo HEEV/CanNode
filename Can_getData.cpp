@@ -30,8 +30,7 @@ CanState CanNode::getData_int8(const CanMessage *msg, int8_t *data) {
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_INT8 ||   // not right type
-      msg->len != 2 ||                     // not right length
+  if ( msg->len != 2 ||                     // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -75,8 +74,7 @@ CanState CanNode::getData_uint8(const CanMessage *msg, uint8_t *data) {
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_UINT8 ||  // not right type
-      msg->len != 2 ||                     // not right length
+  if ( msg->len != 2 ||                     // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -120,8 +118,7 @@ CanState CanNode::getData_int16(const CanMessage *msg, int16_t *data) {
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_INT16 ||  // not right type
-      msg->len != 3 ||                     // not right length
+  if ( msg->len != 3 ||                    // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -171,8 +168,7 @@ CanState CanNode::getData_uint16(const CanMessage *msg, uint16_t *data) {
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_UINT16 || // not right type
-      msg->len != 3 ||                     // not right length
+  if ( msg->len != 3 ||                    // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -222,8 +218,7 @@ CanState CanNode::getData_int32(const CanMessage *msg, int32_t *data) {
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_INT32 ||  // not right type
-      msg->len != 5 ||                     // not right length
+  if ( msg->len != 5 ||                     // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -275,8 +270,7 @@ CanState CanNode::getData_uint32(const CanMessage *msg, uint32_t *data) {
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_UINT32 || // not right type
-      msg->len != 5 ||                     // not right length
+  if ( msg->len != 5 ||                     // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -335,9 +329,7 @@ CanState CanNode::getDataArr_int8(const CanMessage *msg, int8_t data[7], uint8_t
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_INT8 ||   // not right type
-      msg->len > 1 ||                      // not right length
-      (msg->data[0] & 0x1F) != CAN_DATA) { // not data
+  if ( (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
   }
@@ -396,9 +388,7 @@ CanState CanNode::getDataArr_uint8(const CanMessage *msg, uint8_t data[7],
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_UINT8 ||  // not right type
-      msg->len > 1 ||                      // not right length
-      (msg->data[0] & 0x1F) != CAN_DATA) { // not data
+  if ((msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
   }
@@ -457,9 +447,7 @@ CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[3],
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_INT16 ||  // not right type
-      msg->len > 3 ||                      // not right length
-      (msg->data[0] & 0x1F) != CAN_DATA) { // not data
+  if ((msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
   }
@@ -522,9 +510,7 @@ CanState CanNode::getDataArr_uint16(const CanMessage *msg, uint16_t data[3],
   }
 
   // check configuration byte
-  if ((msg->data[0] >> 5) != CAN_UINT16 || // not right type
-      msg->len > 3 ||                      // not right length
-      (msg->data[0] & 0x1F) != CAN_DATA) { // not data
+  if ((msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
   }
