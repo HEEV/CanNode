@@ -134,8 +134,20 @@ void can_set_bitrate(canBitrate bitrate) {
 // warning, direct hardware access ahead
 uint8_t get_fmi_cnt(uint8_t filter_bank)
 {
-  // TODO actually count the number of filters
-  return filter_bank*4;
+  auto can_hw = hcan.Instance;
+
+  auto get_bit = [](const volatile uint32_t &reg, int bit) -> bool {
+    return ( reg & (1 << bit) ) == 0;
+  };
+
+  uint8_t filter_cnt = 0;
+  for (int i = 0; i < filter_bank; i++)
+  {
+    filter_cnt += get_bit(can_hw->FA1R, i) ? 
+      (get_bit(can_hw->FM1R, i) ? 4 : 2) : 0;  
+  }
+  
+  return filter_cnt;
 }
 
 /**
@@ -153,7 +165,7 @@ fmi_ret_t can_add_filter_id(filter_id_t id1,
 {
 
   CAN_FilterTypeDef filter;
-  const int MAX_FILTER = 12;
+  const int MAX_FILTER = 13;
   const uint16_t BAD_FMI = 0xF;
   if (filter_bank > MAX_FILTER) {
     return {
@@ -172,8 +184,8 @@ fmi_ret_t can_add_filter_id(filter_id_t id1,
 
   // mostly setup filter
   filter.FilterIdLow      = id_to_hw(id1);
-  filter.FilterIdHigh     = id_to_hw(id2);
-  filter.FilterMaskIdLow  = id_to_hw(id3);
+  filter.FilterMaskIdLow  = id_to_hw(id2);
+  filter.FilterIdHigh     = id_to_hw(id3);
   filter.FilterMaskIdHigh = id_to_hw(id4);
   filter.FilterMode = CAN_FILTERMODE_IDLIST;
   filter.FilterScale = CAN_FILTERSCALE_16BIT;
@@ -220,11 +232,40 @@ fmi_ret_t can_add_filter_mask(filter_id_mask_t id1,
                               uint8_t filter_bank)
 {
 
-  UNUSED(id1);
-  UNUSED(id2);
-  UNUSED(filter_bank);
+  CAN_FilterTypeDef filter;
+  const int MAX_FILTER = 13;
   const uint16_t BAD_FMI = 0xF;
-  uint8_t base_ret = 0;
+
+  if (filter_bank > MAX_FILTER) {
+    return {
+      BAD_FMI, 
+      BAD_FMI, 
+      BAD_FMI, 
+      BAD_FMI 
+    };
+  }
+
+  // setup the filters as specified in the datasheet
+  auto id_to_hw = [](filter_id_t &id) -> uint32_t 
+  {
+    return (id.id << 5) | ( (id.id_rtr ? 1 : 0) << 4 );
+  };
+
+  // mostly setup filter
+  filter.FilterIdLow      = id_to_hw(id1.filter_id);
+  filter.FilterMaskIdLow  = id_to_hw(id1.mask_id);
+  filter.FilterIdHigh     = id_to_hw(id2.filter_id);
+  filter.FilterMaskIdHigh = id_to_hw(id2.mask_id);
+  filter.FilterMode = CAN_FILTERMODE_IDMASK;
+  filter.FilterScale = CAN_FILTERSCALE_16BIT;
+  filter.FilterFIFOAssignment = CAN_FILTER_FIFO1;
+  filter.FilterBank = filter_bank;
+  filter.FilterActivation = ENABLE;
+
+  HAL_CAN_ConfigFilter(&hcan, &filter);
+  
+  // TODO use the 
+  auto base_ret = get_fmi_cnt(filter_bank);
 
   return {
     static_cast<uint16_t>(base_ret), 
