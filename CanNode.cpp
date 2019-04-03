@@ -205,6 +205,8 @@ void CanNode::checkForMessages() {
   if (!newMessage) {
     return;
   }
+  // clear new message flag
+  newMessage = false;
 
   // loop through nodes
   for (uint8_t i = 0; i < MAX_NODES; ++i) {
@@ -243,8 +245,6 @@ void CanNode::checkForMessages() {
     }
   }
 
-  // clear new message flag
-  newMessage = false;
 }
 
 bool CanNode::updateMessage(CanMessage* msg)
@@ -252,6 +252,7 @@ bool CanNode::updateMessage(CanMessage* msg)
   if (!newMessage)
   {
     tmpMsg = *msg;
+    newMessage = true;
     return true;
   }
   return false;
