@@ -10,6 +10,8 @@
 CanNode *CanNode::nodes[MAX_NODES] = {nullptr};
 uint8_t CanNode::filter_bank = 0;
 
+static uint8_t gfifo_num = 0;
+
 /// \brief Initilize a CanNode from given parameters.
 CanNode::CanNode(uint16_t id, filterHandler rtrHandle) {
   static bool has_run = false;
@@ -30,7 +32,7 @@ CanNode::CanNode(uint16_t id, filterHandler rtrHandle) {
     // otherwise its open
 
     for(int j = 0; j < NUM_FILTERS; j++){
-        this->filters[j] = UNUSED_FILTER;
+        this->filters[j] = {UNUSED_FILTER, CAN_NO_DATA};
         this->handle[j] = nullptr;
     }
 
@@ -43,24 +45,15 @@ CanNode::CanNode(uint16_t id, filterHandler rtrHandle) {
     this->rtrHandle = rtrHandle;
 
     this->id = id;
-    // add filters to hardware
 
     // default filters
-    auto fmi = can_add_filter_id(
+    addFilter_id(
       {static_cast<uint16_t>(id),   true}, 
       {static_cast<uint16_t>(id+1), true},
       {static_cast<uint16_t>(id+2), true},
       {static_cast<uint16_t>(id+3), false},
-      filter_bank
+      rtrHandle
     );
-
-    // setup the filters and handlers
-    this->filters[0] = fmi.id1_fmi;
-    this->filters[1] = fmi.id2_fmi;
-    this->filters[2] = fmi.id3_fmi;
-    this->filters[3] = fmi.id4_fmi;
-
-    this->handle[0] = rtrHandle;
 
     // fill a spot in used nodes
     usedNodes |= 1 << i;
@@ -118,21 +111,24 @@ bool CanNode::addFilter_id(
   // add to the end of the list of filters... If there's room.
   for (uint8_t i = 0; i < NUM_FILTERS; i+=4) {
     // check that the filter is open and there are enough
-    if (this->filters[i] == UNUSED_FILTER ) {
+    if (this->filters[i].fifo == CAN_NO_DATA) {
       // add the filters
-      auto ret = can_add_filter_id(id1, id2, id3, id4, filter_bank);
+      auto ret = can_add_filter_id(id1, id2, id3, id4, filter_bank, gfifo_num);
       filter_bank++;
 
       // save the filter id
-      this->filters[i]   = ret.id1_fmi;
-      this->filters[i+1] = ret.id2_fmi;
-      this->filters[i+2] = ret.id3_fmi;
-      this->filters[i+3] = ret.id4_fmi;
+      this->filters[i]   = {ret.id1_fmi, gfifo_num};
+      this->filters[i+1] = {ret.id2_fmi, gfifo_num};
+      this->filters[i+2] = {ret.id3_fmi, gfifo_num};
+      this->filters[i+3] = {ret.id4_fmi, gfifo_num};
       // save a pointer to the handler function
       this->handle[i]   = handle1;
       this->handle[i+1] = handle2;
       this->handle[i+2] = handle3;
       this->handle[i+3] = handle4;
+
+      if (gfifo_num == 0)  gfifo_num = 1;
+      else if (gfifo_num == 1) gfifo_num = 0;
 
       return true; // Sucess! Filter has been added
     }
@@ -162,17 +158,20 @@ bool CanNode::addFilter_mask(
   // add to the end of the list of filters... If there's room.
   for (uint8_t i = 0; i < NUM_FILTERS; i+=2) {
     // check that the filter is open and there are enough
-    if (this->filters[i] == UNUSED_FILTER ) {
+    if (this->filters[i].fifo == CAN_NO_DATA) {
       // add the filters
-      auto ret = can_add_filter_mask(id1, id2, filter_bank);
+      auto ret = can_add_filter_mask(id1, id2, filter_bank, gfifo_num);
       filter_bank++;
 
       // save the filter id
-      this->filters[i]   = ret.id1_fmi;
-      this->filters[i+1] = ret.id2_fmi;
+      this->filters[i]   = {ret.id1_fmi, gfifo_num};
+      this->filters[i+1] = {ret.id2_fmi, gfifo_num};
       // save a pointer to the handler function
       this->handle[i]   = handle1;
       this->handle[i+1] = handle2;
+
+      if (gfifo_num == 0)  gfifo_num = 1;
+      else if (gfifo_num == 1) gfifo_num = 0;
 
       return true; // Sucess! Filter has been added
     }
@@ -199,7 +198,8 @@ void CanNode::checkForMessages() {
 
   // grab the new message, exit if there is no data
   CanMessage msg; 
-  if (can_rx(&msg, 5) == NO_DATA) {
+  auto msg_info = can_rx(&msg, 5);
+  if (msg_info.fifo != 0 && msg_info.fifo != 1){
     return;
   }
 
@@ -211,28 +211,33 @@ void CanNode::checkForMessages() {
     if (nodes[i] == nullptr) {
         continue;
     }
-    if (msg.fmi == nodes[i]->filters[0]) {
-      nodes[i]->rtrHandle(&msg);
-    }
-    // get name id if asked with an rtr
-    else if (msg.fmi == nodes[i]->filters[1]) {
-      nodes[i]->sendName();
-    }
-    // get info id
-    else if (msg.fmi == nodes[i]->filters[2]) {
-      nodes[i]->sendInfo();
-    }
-    else {
-      // call callbacks for the user defined filters
-      for (uint8_t j = 4; j < NUM_FILTERS; ++j) {
-        if (msg.fmi == nodes[i]->filters[j]) {
+    // call callbacks for the user defined filters
+    for (uint8_t j = 0; j < NUM_FILTERS; ++j) {
 
+      auto node_info = nodes[i]->filters[j];
+
+      // make sure that the filter fifo and fmi match
+      if (msg_info.fifo == node_info.fifo &&
+          msg_info.fmi  == node_info.fmi) {
+
+        auto node_id = nodes[i]->id;
+        if (msg.id == node_id){
+          nodes[i]->rtrHandle(&msg);
+        }
+        else if (msg.id == node_id + 1){
+          nodes[i]->sendName();
+        }
+        else if (msg.id == node_id + 2){
+          nodes[i]->sendInfo();
+        }
+        else {
           // call handler function
           nodes[i]->handle[j](&msg);
         }
 
-      } // end loop through node filters
-    } // end user callbacks
+      }
+
+    } // end loop through node filters
   } // end loop through nodes
 }
 

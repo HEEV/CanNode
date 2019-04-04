@@ -117,8 +117,6 @@ typedef enum {
   BUS_OFF        ///< The bus is off - call can_init() and can_enable()
 } CanState;
 
-
-static const unsigned int UNUSED_FILTER = 0xFFFF;
 /// value returned by can_add_filter functions if no filter was added
 static const unsigned int CAN_FILTER_ERROR = 0xFFFF;
 
@@ -130,7 +128,6 @@ static const unsigned int CAN_FILTER_ERROR = 0xFFFF;
 typedef struct {                                                                                    
   uint16_t id;     ///< ID of the sender                                                            
   uint8_t len;     ///< Length of the message                                                       
-  uint8_t fmi;     ///< Filter mask index (what filter triggered message)                           
   bool rtr;        ///< Asking for data (true) or sending data (false)                              
   uint8_t data[8]; ///< Data                                                                        
 } CanMessage;
@@ -151,6 +148,13 @@ typedef struct {
   uint16_t id3_fmi : 4;
   uint16_t id4_fmi : 4;
 } fmi_ret_t;
+
+#define UNUSED_FILTER 0xF
+#define CAN_NO_DATA 0xF
+typedef struct {
+  uint16_t fmi  : 4;
+  uint16_t fifo : 4;
+} can_rx_ret_t;
 
 /**
  * \enum CanNodeDataType

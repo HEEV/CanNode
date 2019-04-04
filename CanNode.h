@@ -135,11 +135,11 @@ private:
   static uint8_t filter_bank;
   static CanNode *nodes[MAX_NODES];
 
-  uint16_t id;                   ///< id of the node
-  uint8_t status;                ///< status of the node (not currently used)
-  uint16_t filters[NUM_FILTERS]; ///< array of id's to handle
-  filterHandler rtrHandle;       ///< function to handle rtr requests for
-                                 /// the node
+  uint16_t id;                        ///< id of the node
+  uint8_t status;                     ///< status of the node (not currently used)
+  can_rx_ret_t filters[NUM_FILTERS];  ///< array of id's to handle
+  filterHandler rtrHandle;            ///< function to handle rtr requests for
+                                      /// the node
 
   filterHandler handle[NUM_FILTERS]; ///< array of function pointers to call
                                      ///< when a id in filters is found

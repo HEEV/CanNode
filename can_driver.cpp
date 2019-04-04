@@ -12,8 +12,6 @@ static uint16_t prescaler;
 static uint8_t bs1;
 static uint8_t bs2;
 
-static uint8_t fifo_num = 1;
-
 void can_init(void) {
   MX_CAN_Init();
   HAL_CAN_ActivateNotification(&hcan, CAN_IER_FOVIE0 | CAN_IER_FOVIE1);
@@ -132,13 +130,15 @@ void can_set_bitrate(canBitrate bitrate) {
 
 // get the starting fmi (filter mask index) of the bank spefied
 // warning, direct hardware access ahead
-uint8_t get_fmi_cnt(uint8_t filter_bank)
+uint8_t get_fmi_cnt(uint8_t filter_bank, uint8_t fifo_num)
 {
 
   uint8_t filter_cnt = 0;
   for (int i = 0; i < filter_bank; i++)
   {
-    if( CAN->FA1R & (1 << i) )
+    // check if the filter is enabled and 
+    // belongs to the correct fifo
+    if( CAN->FA1R & (1 << i) && CAN->FFA1R & (1 << i) )
     {
       filter_cnt += (CAN->FM1R & (1 << i)) ?
         4 : 2;
@@ -159,7 +159,8 @@ fmi_ret_t can_add_filter_id(filter_id_t id1,
                             filter_id_t id2,
                             filter_id_t id3,
                             filter_id_t id4,
-                            uint8_t filter_bank)
+                            uint8_t filter_bank,
+                            uint8_t fifo_num)
 {
 
   CAN_FilterTypeDef filter;
@@ -191,14 +192,10 @@ fmi_ret_t can_add_filter_id(filter_id_t id1,
   filter.FilterBank = filter_bank;
   filter.FilterActivation = ENABLE;
 
-  if (fifo_num == 0)      fifo_num = 1;
-  else if (fifo_num == 1) fifo_num = 0;
-
   HAL_CAN_ConfigFilter(&hcan, &filter);
-  
 
   // TODO use the 
-  auto base_ret = get_fmi_cnt(filter_bank);
+  auto base_ret = get_fmi_cnt(filter_bank, fifo_num);
   return {
     static_cast<uint16_t>(base_ret), 
     static_cast<uint16_t>(base_ret+1), 
@@ -231,7 +228,8 @@ fmi_ret_t can_add_filter_id(filter_id_t id1,
  */
 fmi_ret_t can_add_filter_mask(filter_id_mask_t id1,
                               filter_id_mask_t id2,
-                              uint8_t filter_bank)
+                              uint8_t filter_bank,
+                              uint8_t fifo_num)
 {
 
   CAN_FilterTypeDef filter;
@@ -264,13 +262,10 @@ fmi_ret_t can_add_filter_mask(filter_id_mask_t id1,
   filter.FilterBank = filter_bank;
   filter.FilterActivation = ENABLE;
 
-  if (fifo_num == 0)      fifo_num = 1;
-  else if (fifo_num == 1) fifo_num = 0;
-
   HAL_CAN_ConfigFilter(&hcan, &filter);
   
   // TODO use the 
-  auto base_ret = get_fmi_cnt(filter_bank);
+  auto base_ret = get_fmi_cnt(filter_bank, fifo_num);
 
   return {
     static_cast<uint16_t>(base_ret), 
@@ -297,31 +292,32 @@ CanState can_tx(CanMessage *tx_msg, uint32_t timeout) {
   return BUS_OK;
 }
 
-CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
+can_rx_ret_t can_rx(CanMessage *rx_msg, uint32_t timeout) {
   UNUSED(timeout);
 
+  can_rx_ret_t ret = {0, CAN_NO_DATA};
   // check for data
-  auto fifo_num = is_can_msg_pending();
-  if (fifo_num == -1){
-    return NO_DATA;
+  ret.fifo = is_can_msg_pending();
+  if (ret.fifo == CAN_NO_DATA){
+    return ret;
   }
 
   // get the data
   CAN_RxHeaderTypeDef rx_header;
   uint8_t data[8];
-  HAL_CAN_GetRxMessage(&hcan, fifo_num, &rx_header, data);
+  HAL_CAN_GetRxMessage(&hcan, ret.fifo , &rx_header, data);
 
   // fill a CanNode message
   rx_msg->id  = static_cast<uint16_t>(rx_header.StdId);
   rx_msg->len = static_cast<uint8_t>(rx_header.DLC);
-  rx_msg->fmi = static_cast<uint8_t>(rx_header.FilterMatchIndex);
   rx_msg->rtr = (rx_header.RTR == CAN_RTR_REMOTE);
 
   for (int i = 0; i < 8; i++) {
     rx_msg->data[i] = data[i];
   }
 
-  return BUS_OK;
+  ret.fmi = static_cast<uint8_t>(rx_header.FilterMatchIndex);
+  return ret; 
 }
 
 void enable_notifications(bool en)
@@ -341,10 +337,7 @@ void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
 }
 
 int is_can_msg_pending() {
-  //if      (HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO0) > 0) return 0;
-  if (HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO1) > 0){
-    HAL_GPIO_TogglePin(User_LED_GPIO_Port, User_LED_Pin);
-    return 1;
-  } 
-  return -1;
+  if (HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO0) > 0) return 0;
+  if (HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO1) > 0) return 1; 
+  return CAN_NO_DATA;
 }
