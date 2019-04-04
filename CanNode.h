@@ -132,10 +132,8 @@ class CanNode {
 
 
 private:
-  static bool newMessage;
   static uint8_t filter_bank;
   static CanNode *nodes[MAX_NODES];
-  static CanMessage tmpMsg;
 
   uint16_t id;                   ///< id of the node
   uint8_t status;                ///< status of the node (not currently used)
@@ -182,7 +180,6 @@ public:
 
   /// \brief Check all initilized CanNodes for messages and call callbacks.
   static void checkForMessages();
-  static bool updateMessage(CanMessage* msg);
 
   /**
    * \anchor sendData

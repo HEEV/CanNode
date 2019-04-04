@@ -39,6 +39,8 @@ CanState can_tx(CanMessage *tx_msg, uint32_t timeout);
 /// \brief Get a CanMessage from the hardware if it is availible.
 CanState can_rx(CanMessage *rx_msg, uint32_t timeout);
 /// \brief Check if a new message is avalible.
-bool is_can_msg_pending();
+int is_can_msg_pending();
+
+void enable_notifications(bool en);
 
 #endif // _CAN_H

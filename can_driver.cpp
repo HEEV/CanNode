@@ -11,12 +11,12 @@
 static uint16_t prescaler;
 static uint8_t bs1;
 static uint8_t bs2;
-static CanState bus_state;
-static uint8_t num_msg;
+
+static uint8_t fifo_num = 1;
 
 void can_init(void) {
   MX_CAN_Init();
-  HAL_CAN_ActivateNotification(&hcan, CAN_IER_FMPIE0 | CAN_IER_FMPIE1);
+  HAL_CAN_ActivateNotification(&hcan, CAN_IER_FOVIE0 | CAN_IER_FOVIE1);
   HAL_CAN_Start(&hcan);
 }
 
@@ -134,17 +134,15 @@ void can_set_bitrate(canBitrate bitrate) {
 // warning, direct hardware access ahead
 uint8_t get_fmi_cnt(uint8_t filter_bank)
 {
-  auto can_hw = hcan.Instance;
-
-  auto get_bit = [](const volatile uint32_t &reg, int bit) -> bool {
-    return ( reg & (1 << bit) ) == 0;
-  };
 
   uint8_t filter_cnt = 0;
   for (int i = 0; i < filter_bank; i++)
   {
-    filter_cnt += get_bit(can_hw->FA1R, i) ? 
-      (get_bit(can_hw->FM1R, i) ? 4 : 2) : 0;  
+    if( CAN->FA1R & (1 << i) )
+    {
+      filter_cnt += (CAN->FM1R & (1 << i)) ?
+        4 : 2;
+    }
   }
   
   return filter_cnt;
@@ -167,7 +165,7 @@ fmi_ret_t can_add_filter_id(filter_id_t id1,
   CAN_FilterTypeDef filter;
   const int MAX_FILTER = 13;
   const uint16_t BAD_FMI = 0xF;
-  if (filter_bank > MAX_FILTER) {
+  if (filter_bank > MAX_FILTER || fifo_num > 1) {
     return {
       BAD_FMI, 
       BAD_FMI, 
@@ -189,12 +187,16 @@ fmi_ret_t can_add_filter_id(filter_id_t id1,
   filter.FilterMaskIdHigh = id_to_hw(id4);
   filter.FilterMode = CAN_FILTERMODE_IDLIST;
   filter.FilterScale = CAN_FILTERSCALE_16BIT;
-  filter.FilterFIFOAssignment = CAN_FILTER_FIFO0;
+  filter.FilterFIFOAssignment = fifo_num;
   filter.FilterBank = filter_bank;
   filter.FilterActivation = ENABLE;
 
+  if (fifo_num == 0)      fifo_num = 1;
+  else if (fifo_num == 1) fifo_num = 0;
+
   HAL_CAN_ConfigFilter(&hcan, &filter);
   
+
   // TODO use the 
   auto base_ret = get_fmi_cnt(filter_bank);
   return {
@@ -236,7 +238,7 @@ fmi_ret_t can_add_filter_mask(filter_id_mask_t id1,
   const int MAX_FILTER = 13;
   const uint16_t BAD_FMI = 0xF;
 
-  if (filter_bank > MAX_FILTER) {
+  if (filter_bank > MAX_FILTER || fifo_num > 1) {
     return {
       BAD_FMI, 
       BAD_FMI, 
@@ -258,9 +260,12 @@ fmi_ret_t can_add_filter_mask(filter_id_mask_t id1,
   filter.FilterMaskIdHigh = id_to_hw(id2.mask_id);
   filter.FilterMode = CAN_FILTERMODE_IDMASK;
   filter.FilterScale = CAN_FILTERSCALE_16BIT;
-  filter.FilterFIFOAssignment = CAN_FILTER_FIFO1;
+  filter.FilterFIFOAssignment = fifo_num;
   filter.FilterBank = filter_bank;
   filter.FilterActivation = ENABLE;
+
+  if (fifo_num == 0)      fifo_num = 1;
+  else if (fifo_num == 1) fifo_num = 0;
 
   HAL_CAN_ConfigFilter(&hcan, &filter);
   
@@ -277,81 +282,69 @@ fmi_ret_t can_add_filter_mask(filter_id_mask_t id1,
 
 CanState can_tx(CanMessage *tx_msg, uint32_t timeout) { 
   UNUSED(timeout);
-  uint8_t mailbox; // find an empty mailbox
-  for (mailbox = 0; mailbox < 3; ++mailbox) {
-    // check the status
-    if (CAN->sTxMailBox[mailbox].TIR & CAN_TI0R_TXRQ) {
-      continue;
-    } else {
-      break; // found open mailbox
-    }
-  }
 
-  // if there are no open mailboxes
-  if (mailbox == 3) {
-    return BUS_BUSY;
-  }
+  CAN_TxHeaderTypeDef tx_header = {
+    tx_msg->id, 0,
+    CAN_ID_STD,
+    tx_msg->rtr ? CAN_RTR_REMOTE : CAN_RTR_DATA,
+    tx_msg->len, 
+    DISABLE
+  };
+  uint32_t can_mailbox;
 
-  // add data to register
-  CAN->sTxMailBox[mailbox].TIR = (uint32_t)tx_msg->id << 21;
-  if (tx_msg->rtr) {
-    CAN->sTxMailBox[mailbox].TIR |= CAN_TI0R_RTR;
-  }
-
-  // set message length
-  CAN->sTxMailBox[mailbox].TDTR = tx_msg->len & 0x0F;
-
-  // clear mailbox and add new data
-  CAN->sTxMailBox[mailbox].TDHR = 0;
-  CAN->sTxMailBox[mailbox].TDLR = 0;
-  for (uint8_t i = 0; i < 4; ++i) {
-    CAN->sTxMailBox[mailbox].TDHR |= tx_msg->data[i + 4] << (8 * i);
-    CAN->sTxMailBox[mailbox].TDLR |= tx_msg->data[i] << (8 * i);
-  }
-  // transmit can frame
-  CAN->sTxMailBox[mailbox].TIR |= CAN_TI0R_TXRQ;
+  HAL_CAN_AddTxMessage(&hcan, &tx_header, tx_msg->data, &can_mailbox);
 
   return BUS_OK;
 }
 
 CanState can_rx(CanMessage *rx_msg, uint32_t timeout) {
   UNUSED(timeout);
-	uint8_t fifoNum = 0;
 
-	//check if there is data in fifo0
-	if((CAN->RF0R & CAN_RF0R_FMP0) == 0){ //if there is no data
-		return NO_DATA;
-	}
+  // check for data
+  auto fifo_num = is_can_msg_pending();
+  if (fifo_num == -1){
+    return NO_DATA;
+  }
 
-	//get data from regisers
-	//get the id field
-	rx_msg->id = (uint16_t) (CAN->sFIFOMailBox[fifoNum].RIR >> 21);
+  // get the data
+  CAN_RxHeaderTypeDef rx_header;
+  uint8_t data[8];
+  HAL_CAN_GetRxMessage(&hcan, fifo_num, &rx_header, data);
 
-	//check if it is a rtr message
-	rx_msg->rtr = false;
-	if(CAN->sFIFOMailBox[fifoNum].RIR & CAN_RI0R_RTR){ 
-		rx_msg->rtr = true;
-	}
-	
-	//get data length
-	rx_msg->len = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDTR & CAN_RDT0R_DLC);
-	
-	//get filter mask index
-	rx_msg->fmi = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDTR >> 8);
+  // fill a CanNode message
+  rx_msg->id  = static_cast<uint16_t>(rx_header.StdId);
+  rx_msg->len = static_cast<uint8_t>(rx_header.DLC);
+  rx_msg->fmi = static_cast<uint8_t>(rx_header.FilterMatchIndex);
+  rx_msg->rtr = (rx_header.RTR == CAN_RTR_REMOTE);
 
-	//get the data
-    for(uint8_t i=0; i<4; ++i) {
-		rx_msg->data[i+4] = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDHR >> (8*i));
-		rx_msg->data[i]   = (uint8_t) (CAN->sFIFOMailBox[fifoNum].RDLR >> (8*i));
-	}
+  for (int i = 0; i < 8; i++) {
+    rx_msg->data[i] = data[i];
+  }
 
-	//clear fifo
-	CAN->RF0R |= CAN_RF0R_RFOM0;
-	--num_msg;
-
-	return BUS_OK;
+  return BUS_OK;
 }
 
-bool is_can_msg_pending() {
-	return ((CAN->RF0R & CAN_RF0R_FMP0) > 0); //if there is no data
+void enable_notifications(bool en)
+{
+  if(en){
+    HAL_CAN_ActivateNotification(&hcan, CAN_IER_FMPIE0 | CAN_IER_FMPIE1);
+  }
+  else
+  {
+    HAL_CAN_DeactivateNotification(&hcan, CAN_IER_FMPIE0 | CAN_IER_FMPIE1);
+  }
+}
+
+void HAL_CAN_ErrorCallback(CAN_HandleTypeDef *hcan)
+{
+  HAL_CAN_ResetError(hcan);
+}
+
+int is_can_msg_pending() {
+  //if      (HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO0) > 0) return 0;
+  if (HAL_CAN_GetRxFifoFillLevel(&hcan, CAN_RX_FIFO1) > 0){
+    HAL_GPIO_TogglePin(User_LED_GPIO_Port, User_LED_Pin);
+    return 1;
+  } 
+  return -1;
 }

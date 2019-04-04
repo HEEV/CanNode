@@ -9,8 +9,6 @@
 
 CanNode *CanNode::nodes[MAX_NODES] = {nullptr};
 uint8_t CanNode::filter_bank = 0;
-bool CanNode::newMessage = false;
-CanMessage CanNode::tmpMsg;
 
 /// \brief Initilize a CanNode from given parameters.
 CanNode::CanNode(uint16_t id, filterHandler rtrHandle) {
@@ -55,7 +53,6 @@ CanNode::CanNode(uint16_t id, filterHandler rtrHandle) {
       {static_cast<uint16_t>(id+3), false},
       filter_bank
     );
-    filter_bank++;
 
     // setup the filters and handlers
     this->filters[0] = fmi.id1_fmi;
@@ -119,9 +116,9 @@ bool CanNode::addFilter_id(
   }
 
   // add to the end of the list of filters... If there's room.
-  for (uint8_t i = 0; i < NUM_FILTERS; ++i) {
+  for (uint8_t i = 0; i < NUM_FILTERS; i+=4) {
     // check that the filter is open and there are enough
-    if (this->filters[i] == UNUSED_FILTER && i+4 < NUM_FILTERS) {
+    if (this->filters[i] == UNUSED_FILTER ) {
       // add the filters
       auto ret = can_add_filter_id(id1, id2, id3, id4, filter_bank);
       filter_bank++;
@@ -163,9 +160,9 @@ bool CanNode::addFilter_mask(
   }
 
   // add to the end of the list of filters... If there's room.
-  for (uint8_t i = 0; i < NUM_FILTERS; ++i) {
+  for (uint8_t i = 0; i < NUM_FILTERS; i+=2) {
     // check that the filter is open and there are enough
-    if (this->filters[i] == UNUSED_FILTER && i+2 < NUM_FILTERS) {
+    if (this->filters[i] == UNUSED_FILTER ) {
       // add the filters
       auto ret = can_add_filter_mask(id1, id2, filter_bank);
       filter_bank++;
@@ -199,14 +196,12 @@ bool CanNode::addFilter_mask(
  */
 void CanNode::checkForMessages() {
   // pc code should check if a new message is avalible
-  // TODO stm32 uses an interrupt to put the newest message in a struct
 
-  // if there are no new messages don't do anything
-  if (!newMessage) {
+  // grab the new message, exit if there is no data
+  CanMessage msg; 
+  if (can_rx(&msg, 5) == NO_DATA) {
     return;
   }
-  // clear new message flag
-  newMessage = false;
 
   // loop through nodes
   for (uint8_t i = 0; i < MAX_NODES; ++i) {
@@ -216,46 +211,29 @@ void CanNode::checkForMessages() {
     if (nodes[i] == nullptr) {
         continue;
     }
-    if (tmpMsg.fmi == nodes[i]->filters[0]) {
-      nodes[i]->rtrHandle(&tmpMsg);
+    if (msg.fmi == nodes[i]->filters[0]) {
+      nodes[i]->rtrHandle(&msg);
     }
     // get name id if asked with an rtr
-    else if (tmpMsg.fmi == nodes[i]->filters[1]) {
+    else if (msg.fmi == nodes[i]->filters[1]) {
       nodes[i]->sendName();
     }
     // get info id
-    else if (tmpMsg.fmi == nodes[i]->filters[2]) {
+    else if (msg.fmi == nodes[i]->filters[2]) {
       nodes[i]->sendInfo();
     }
     else {
       // call callbacks for the user defined filters
       for (uint8_t j = 4; j < NUM_FILTERS; ++j) {
-        if (tmpMsg.fmi == nodes[i]->filters[j]) {
+        if (msg.fmi == nodes[i]->filters[j]) {
 
           // call handler function
-          nodes[i]->handle[j](&tmpMsg);
+          nodes[i]->handle[j](&msg);
         }
-        // check if the filter match equals a filter id
-        else if ( tmpMsg.fmi == nodes[i]->filters[j] ) { // filter matches
 
-          // call handler function
-          nodes[i]->handle[j](&tmpMsg);
-        }
-      }
-    }
-  }
-
-}
-
-bool CanNode::updateMessage(CanMessage* msg)
-{
-  if (!newMessage)
-  {
-    tmpMsg = *msg;
-    newMessage = true;
-    return true;
-  }
-  return false;
+      } // end loop through node filters
+    } // end user callbacks
+  } // end loop through nodes
 }
 
 void CanNode::setName(const char *name) {
