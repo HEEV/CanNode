@@ -8,124 +8,10 @@
 #include "CanNode.h"
 #include "can.h"
 
-static uint16_t prescaler;
-static uint8_t bs1;
-static uint8_t bs2;
-
 void can_init(void) {
   MX_CAN_Init();
   HAL_CAN_ActivateNotification(&hcan, CAN_IER_FOVIE0 | CAN_IER_FOVIE1);
   HAL_CAN_Start(&hcan);
-}
-
-void can_set_bitrate(canBitrate bitrate) {
-  // all these values were calculated from the equation given in the reference
-  // manual for
-  // finding the baudrate. They are calculated from an LibreOffice Calc
-  // spreadsheet for a 16MHZ clock
-#ifndef STM32F3
-  switch (bitrate) {
-  case CAN_BITRATE_10K:
-    prescaler = 159;
-    bs1 = 3;
-    bs2 = 4;
-    break;
-  case CAN_BITRATE_20K:
-    prescaler = 99;
-    bs1 = 2;
-    bs2 = 3;
-    break;
-  case CAN_BITRATE_50K:
-    prescaler = 31;
-    bs1 = 4;
-    bs2 = 3;
-    break;
-  case CAN_BITRATE_100K:
-    prescaler = 19;
-    bs1 = 3;
-    bs2 = 2;
-    break;
-  case CAN_BITRATE_125K:
-    prescaler = 7;
-    bs1 = 7;
-    bs2 = 6;
-    break;
-  case CAN_BITRATE_250K:
-    prescaler = 7;
-    bs1 = 1;
-    bs2 = 4;
-    break;
-
-  default:
-  case CAN_BITRATE_500K:
-    prescaler = 1;
-    bs1 = 7;
-    bs2 = 6;
-    break;
-  case CAN_BITRATE_750K:
-    prescaler = 2;
-    bs1 = 2;
-    bs2 = 2;
-    break;
-  case CAN_BITRATE_1000K:
-    prescaler = 1;
-    bs1 = 2;
-    bs2 = 3;
-    break;
-  }
-#endif
-// used the same spreadsheet for a 24MHz clock
-#ifdef STM32F3
-  switch (bitrate) {
-  case CAN_BITRATE_10K:
-    prescaler = 479;
-    bs1 = 2;
-    bs2 = 0;
-    break;
-  case CAN_BITRATE_20K:
-    prescaler = 149;
-    bs1 = 4;
-    bs2 = 1;
-    break;
-  case CAN_BITRATE_50K:
-    prescaler = 95;
-    bs1 = 2;
-    bs2 = 0;
-    break;
-  case CAN_BITRATE_100K:
-    prescaler = 23;
-    bs1 = 4;
-    bs2 = 3;
-    break;
-  case CAN_BITRATE_125K:
-    prescaler = 31;
-    bs1 = 3;
-    bs2 = 0;
-    break;
-  case CAN_BITRATE_250K:
-    prescaler = 23;
-    bs1 = 0;
-    bs2 = 1;
-    break;
-
-  default:
-  case CAN_BITRATE_500K:
-    prescaler = 5;
-    bs1 = 2;
-    bs2 = 3;
-    break;
-  case CAN_BITRATE_750K:
-    prescaler = 3;
-    bs1 = 4;
-    bs2 = 1;
-    break;
-  case CAN_BITRATE_1000K:
-    prescaler = 2;
-    bs1 = 5;
-    bs2 = 0;
-    break;
-  }
-#endif
 }
 
 // get the starting fmi (filter mask index) of the bank spefied
@@ -138,7 +24,8 @@ uint8_t get_fmi_cnt(uint8_t filter_bank, uint8_t fifo_num)
   {
     // check if the filter is enabled and 
     // belongs to the correct fifo
-    if( CAN->FA1R & (1 << i) && CAN->FFA1R & (1 << i) )
+    auto hw_fifo = (CAN->FFA1R & (1 << i)) ? 1 : 0;
+    if( CAN->FA1R & (1 << i) &&  hw_fifo == fifo_num)
     {
       filter_cnt += (CAN->FM1R & (1 << i)) ?
         4 : 2;
