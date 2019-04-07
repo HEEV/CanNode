@@ -200,6 +200,8 @@ public:
   void sendData_int32(int32_t data) const;
   /// \brief Send an unsigned 32-bit integer.
   void sendData_uint32(uint32_t data) const;
+  /// \brief Send a 32-bit floating point number.
+  void sendData_float(float data) const;
   /// \brief Send a custom CanMessage.
   void sendData_custom(CanMessage* data) const;
 
@@ -237,6 +239,8 @@ public:
   static CanState getData_int32(const CanMessage *msg, int32_t *data);
   /// \brief Get an unsigned 32-bit integer from a CanMessage.
   static CanState getData_uint32(const CanMessage *msg, uint32_t *data);
+  /// \brief Get a 32-bit floating point number from a CanMessage.
+  static CanState getData_float(const CanMessage *msg, float *data);
 
   /// \brief Get an array of signed 8-bit integers from a CanMessage.
   static CanState getDataArr_int8(const CanMessage *msg, int8_t data[7], uint8_t *len);

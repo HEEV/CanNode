@@ -177,6 +177,25 @@ void CanNode::sendData_uint32(uint32_t data) const {
   can_tx(&msg, 5);
 }
 
+void CanNode::sendData_float(float data) const {
+  CanMessage msg;
+  // configuration byte
+  msg.data[0] = (uint8_t)((0x7 & CAN_FLOAT) << 5) | (0x1F & CAN_DATA);
+
+  // set up a pointer to the float to pack it into the data structure
+  uint8_t* flt_ptr = (uint8_t*) &data;
+  // data
+  msg.data[1] =  *flt_ptr;
+  msg.data[2] = *(flt_ptr+1);
+  msg.data[3] = *(flt_ptr+2);
+  msg.data[4] = *(flt_ptr+3);
+  // set other odds and ends
+  msg.len = 5;
+  msg.rtr = false;
+  msg.id = this->id;
+  can_tx(&msg, 5);
+}
+
 /**
  * This function will send a CanMessage from a particular CanNode No type checking byte will be
  * used. You can send whatever data you want with this, but you will have to know how to reconstruct

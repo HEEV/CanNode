@@ -48,10 +48,10 @@ CanNode::CanNode(uint16_t id, filterHandler rtrHandle) {
 
     // default filters
     addFilter_id(
-      {static_cast<uint16_t>(id),   true}, 
-      {static_cast<uint16_t>(id+1), true},
-      {static_cast<uint16_t>(id+2), true},
-      {static_cast<uint16_t>(id+3), false},
+      {static_cast<uint16_t>(id), true}, 
+      {static_cast<uint16_t>(id), true},
+      {static_cast<uint16_t>(id), true},
+      {static_cast<uint16_t>(id), true},
       rtrHandle
     );
 
@@ -223,12 +223,6 @@ void CanNode::checkForMessages() {
         auto node_id = nodes[i]->id;
         if (msg.id == node_id){
           nodes[i]->rtrHandle(&msg);
-        }
-        else if (msg.id == node_id + 1){
-          nodes[i]->sendName();
-        }
-        else if (msg.id == node_id + 2){
-          nodes[i]->sendInfo();
         }
         else {
           // call handler function

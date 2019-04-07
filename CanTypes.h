@@ -172,7 +172,7 @@ typedef enum {
   CAN_INT16,     ///< Signed 16-bit integer
   CAN_UINT32,    ///< Unsigned 32-bit integer
   CAN_INT32,     ///< Signed 32-bit integer
-  CAN_BIT_FIELD, ///< Each bit defines the state of value
+  CAN_FLOAT,     ///< Each bit defines the state of value
   CAN_CUSTOM     ///< Catch all
 } CanNodeDataType;
 
