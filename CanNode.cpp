@@ -6,23 +6,34 @@
  * \date 6-20-16
  */
 #include "CanNode.h"
+#include <unistd.h>
+#include <sys/timeb.h>
 
 CanNode *CanNode::nodes[MAX_NODES] = {nullptr};
 bool CanNode::newMessage = false;
 CanMessage CanNode::tmpMsg;
 
+inline uint32_t HAL_GetTick() {
+  struct timeb tim;
+  ftime(&tim);
+  return (uint32_t) tim.millitm;
+}
+
 /**
- * Initilizes a CanNode object with and ID and a RTR function.
+ * Initilizes an empty CanNode structure to the values provided.
  *
- * This function uses the integer value of the \ref CanNodeType enum
- * passed to it to provide an ID that is used to transmit messages. It
+ * This function basicaly uses the integer value of the \ref CanNodeType enum
+ * passed to it to populate the id field of an internal CanNode structure. It
  * also populates the RTR callback from the provided function. Additional callbacks
- * are added by using the \ref CanNode_addFilter() function. The RTR function is used
- * if a Remote Transmission Request is issued for the ID of the node.
+ * are added by using the \ref CanNode_addFilter() function.
  *
  * \param[in] id CAN Address, use the \ref CanNodeType type.
  * \param[in] rtrHandle function pointer to a handler function for rtr requests.
+ * \param[in] force (depricated) Force the creation of a new node of the given paramaters
+ * if an old one is not found in flash memory.
  *
+ * \returns the address of a \ref CanNode struct that stores the can information.
+ * This information is necessary for using any of the sendData functions
  */
 CanNode::CanNode(CanNodeType id, filterHandler rtrHandle) {
   static bool has_run = false;
@@ -53,17 +64,16 @@ CanNode::CanNode(CanNodeType id, filterHandler rtrHandle) {
     nodes[i] = this;
 
     //clear the name and info pointers
-    this->nameStr=nullptr;
-    this->infoStr=nullptr;
-    this->rtrHandle = rtrHandle;
+    nameStr=NULL;
+    infoStr=NULL;
 
     this->id = id;
     // add filters to hardware
     // default filters
     can_add_filter_id(id);     // rtr filter
-    can_add_filter_id(id + 1); // get name filter
-    can_add_filter_id(id + 2); // get info filter
-    can_add_filter_id(id + 3); // configuration filter
+    //can_add_filter_id(id + 1); // get name filter
+    //can_add_filter_id(id + 2); // get info filter
+    //can_add_filter_id(id + 3); // configuration filter
 
     // fill a spot in used nodes
     usedNodes |= 1 << i;
@@ -148,7 +158,6 @@ void CanNode::sendData_int8(int8_t data) const {
   // data
   msg.data[1] = (uint8_t)data;
   // set other odds and ends
-  msg.rtr = false;
   msg.len = 2;
   msg.id = this->id;
   can_tx(&msg, 5);
@@ -177,7 +186,6 @@ void CanNode::sendData_uint8(uint8_t data) const {
   msg.data[1] = data;
   // set other odds and ends
   msg.len = 2;
-  msg.rtr = false;
   msg.id = this->id;
   can_tx(&msg, 5);
 }
@@ -810,6 +818,34 @@ CanState CanNode::getData_uint32(const CanMessage *msg, uint32_t *data) {
   return DATA_OK;
 }
 
+CanState CanNode::getData_float(const CanMessage *msg, float *data)
+{
+  if (msg == nullptr) {
+    return DATA_ERROR;
+  }
+
+  CanState ret = DATA_OK;
+  // check configuration byte
+  if ( msg->len != 5 ||                     // not right length
+      (msg->data[0] >> 5)   != CAN_FLOAT || // not right type
+      (msg->data[0] & 0x1F) != CAN_DATA) {  // not data
+
+    ret = INVALID_TYPE;
+  }
+
+  // recast the float into a uint8 to do pull the data
+  // out of the structure
+  uint8_t* flt_ptr = (uint8_t*)data;
+
+  // data
+  *flt_ptr     = msg->data[1];
+  *(flt_ptr+1) = msg->data[2];
+  *(flt_ptr+2) = msg->data[3];
+  *(flt_ptr+3) = msg->data[4];
+
+  return ret;
+}
+
 /**
  * Interpert a CanMessage as a signed 8 bit array (will return error if
  * incorrect)
@@ -969,7 +1005,7 @@ CanState CanNode::getDataArr_uint8(const CanMessage *msg, uint8_t data[7],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[3],
+CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[2],
                                   uint8_t *len) {
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -977,7 +1013,7 @@ CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[3],
 
   // check configuration byte
   if ((msg->data[0] >> 5) != CAN_INT16 ||  // not right type
-      msg->len > 7 ||                      // not right length
+      msg->len > 3 ||                      // not right length
       (msg->data[0] & 0x1F) != CAN_DATA) { // not data
 
     return INVALID_TYPE;
@@ -1033,7 +1069,7 @@ CanState CanNode::getDataArr_int16(const CanMessage *msg, int16_t data[3],
  * \see CanNode_getData_int32()
  * \see CanNode_getData_uint32()
  */
-CanState CanNode::getDataArr_uint16(const CanMessage *msg, uint16_t data[3],
+CanState CanNode::getDataArr_uint16(const CanMessage *msg, uint16_t data[3,
                           uint8_t *len) {
   if (msg == nullptr) {
     return DATA_ERROR;
@@ -1079,7 +1115,6 @@ void CanNode::checkForMessages() {
 
   // if there are no new messages don't do anything
   if (!is_can_msg_pending()) {
-    HAL_GPIO_TogglePin(User_LED_GPIO_Port, User_LED_Pin);
     return;
   }
 
@@ -1095,27 +1130,10 @@ void CanNode::checkForMessages() {
     if (tmpMsg.id == nodes[i]->id && tmpMsg.rtr) {
       nodes[i]->rtrHandle(&tmpMsg);
     }
-    // get name id if asked with an rtr
-    else if (tmpMsg.id == nodes[i]->id + 1 && tmpMsg.rtr) {
-      nodes[i]->sendName();
-    }
-    // get info id
-    else if (tmpMsg.id == nodes[i]->id + 2 && tmpMsg.rtr) {
-      nodes[i]->sendInfo();
-    }
-    // configuration id
-    //else if (nodes[i] != nullptr && tmpMsg.id == nodes[i]->id + 3) {
-      // CanNode_nodeHandler(&nodes[i], &tmpMsg);
     else {
       // call callbacks for the user defined filters
       for (uint8_t j = 0; j < NUM_FILTERS; ++j) {
         if (tmpMsg.id == nodes[i]->filters[j]) {
-          // call handler function
-          nodes[i]->handle[j](&tmpMsg);
-        }
-        // check if the filter match equals a filter id
-        else if ( tmpMsg.fmi == nodes[i]->filters[j] ) { // filter matches
-
           // call handler function
           nodes[i]->handle[j](&tmpMsg);
         }

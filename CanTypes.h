@@ -12,6 +12,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#define HAL_Delay(ms_delay) (usleep(ms_delay * 1000))
 /**
  * \addtogroup CanNode_Module CanNode
  *@{
@@ -19,7 +20,7 @@
 
 #ifndef MAX_NODES
 /// Maximum number of nodes stored internally. Can be overwriten by redefinition
-#define MAX_NODES 8
+#define MAX_NODES 50
 #endif
 
 #ifndef NUM_FILTERS
@@ -57,9 +58,6 @@ typedef enum {
   THROTTLE = 900,     ///< throttle position (uint16)
   THROT_BODY = 904,   ///< throttle body servo
   TACT = 908,
-  STOP_SWITCH = 912,
-  START_SWITCH = 916,
-  KILL_SWITCH = 920,
 
   PRESSURE = 950,     ///< uint16
   PITOT = 950,        ///< Pitot Tube
@@ -79,8 +77,8 @@ typedef enum {
                      ///< Number of revolutions in the last second
   WHEEL_TIME = 1154, ///< Give the time taken for the last wheel revolution
                      ///< time is in mili-seconds.
-  POWER_CTL = 1200,
-  LED = 1300,        ///< array of 4 uint8 RGBA
+
+  LED = 1100,        ///< array of 4 uint8 RGBA
 } CanNodeType;
 
 /**
@@ -117,11 +115,6 @@ typedef enum {
   BUS_OFF        ///< The bus is off - call can_init() and can_enable()
 } CanState;
 
-
-static const unsigned int UNUSED_FILTER = 0xFFFF;
-/// value returned by can_add_filter functions if no filter was added
-static const unsigned int CAN_FILTER_ERROR = 0xFFFF;
-
 /**
  * \struct CanMessage
  * \brief Stucture for holding a CANBus message.
@@ -151,7 +144,7 @@ typedef enum {
   CAN_INT16,     ///< Signed 16-bit integer
   CAN_UINT32,    ///< Unsigned 32-bit integer
   CAN_INT32,     ///< Signed 32-bit integer
-  CAN_BIT_FIELD, ///< Each bit defines the state of value
+  CAN_FLOAT,     ///< Each bit defines the state of value
   CAN_CUSTOM     ///< Catch all
 } CanNodeDataType;
 

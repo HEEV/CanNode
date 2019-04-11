@@ -14,12 +14,11 @@
 #ifndef _CAN_NODE_H_
 #define _CAN_NODE_H_
 
-#include <cstdint>
-#include <cstdlib>
-#include <cstring>
-#include <cstdbool>
 #include "CanTypes.h"
-#include "can_driver.h" // low level CAN driver
+#include <stdbool.h>
+#include <stdint.h>
+#include <stdlib.h>
+#include <string.h>
 
 using std::int8_t;
 using std::uint8_t;
@@ -70,13 +69,11 @@ typedef void (*filterHandler)(CanMessage *data);
  * Example code
  * ~~~~~~~~~~~~ {.c}
  *
- * //this allows you to access the node outside of the main function
- * CanNode* newNodePtr; 
+ * CanNode* newNode;
  * void pitotRTR(CanMessage* msg);
  *
  * void main(){
- *  CanNode newNode(PITOT, pitotRTR);
- *	newNodePtr = &newNode;
+ *	newNode = CanNode_init(PITOT, pitotRTR);
  *	//other stuff here
  *	//...
  * }
@@ -85,7 +82,7 @@ typedef void (*filterHandler)(CanMessage *data);
  *	//continue to do what needs to be done.
  *	uint16_t data = getSensorData();
  *	//call one of the \ref sendData functions to return the data
- *	newNodePtr->sendData_uint16_t(data);
+ *	CanNode_sendData_uint16(newNode, data);
  * }
  * ~~~~~~~~~~~~
  *
@@ -98,11 +95,11 @@ typedef void (*filterHandler)(CanMessage *data);
  * Example code
  *
  * ~~~~~~~~~~~~ {.c}
- * CanNode* nodePtr;
+ * CanNode* node;
  * const uint16_t filterId = 1200;
  * //initilize node
  * //...
- * nodePtr->addFilter(filterId, handler);
+ * CanNode_addFilter(node, filterId, handler);
  * ~~~~~~~~~~~~
  *
  * This is how a filter mask is added (data from multiple ids).
@@ -110,11 +107,11 @@ typedef void (*filterHandler)(CanMessage *data);
  * Example code
  *
  * ~~~~~~~~~~~~ {.c}
- * CanNode* nodePtr;
+ * CanNode* node;
  * //initilize node
  * //...
  * uint16_t id = can_add_filter_mask(id_to_filter, id_mask);
- * nodePtr->addFilter(id, handler);
+ * CanNode_addFilter(node, id, handler);
  * ~~~~~~~~~~~~
  *@{
  */
@@ -134,6 +131,7 @@ class CanNode {
 private:
   static bool newMessage;
   static CanMessage tmpMsg;
+  static const unsigned int UNUSED_FILTER = 0xFFFF;
   static CanNode *nodes[MAX_NODES];
 
   uint16_t id;                   ///< id of the node
@@ -163,7 +161,7 @@ public:
    * types of data. They are non-blocking.
    * @{
    */
-  /// \brief Send a signed 8-bit integer.
+/// \brief Send a signed 8-bit integer.
   void sendData_int8(int8_t data) const;
   /// \brief Send an unsigned 8-bit integer.
   void sendData_uint8(uint8_t data) const;
@@ -196,8 +194,10 @@ public:
    * non-blocking. If the data is not of the same type as the called function
    * \ref INVALID_TYPE is returned.
    *
-   * These functions are useful for data parsing in a handler function, since a
-   * CanMessage is passed as an argument to the function.
+   * These functions are useful for data parsing in a handler function of the
+   * type
+   * passed to CanNode_addFilter() where a CanMessage pointer is passed to the
+   * handler as input.
    * @{
    */
   /// \brief Get a signed 8-bit integer from a CanMessage.
@@ -227,8 +227,10 @@ public:
    * \anchor infoFunctions
    * \name Info Functions
    * These functions handle names for the \ref CanNode_Module library. They
-   * allow for providing a name and descriptive text for a node and requesting
-   * the same information from another node.
+   * allow
+   * for providing a name and descriptive text for a node and requesting the
+   * same
+   * information from another node.
    * @{
    */
   /// \brief Set the name string
@@ -242,6 +244,7 @@ public:
   static void requestInfo(CanNodeType id, char *buff, uint8_t len,
                           uint16_t timeout);
 
+private:
   // private functions to handle CanNode name functions
 
   /**
