@@ -19,6 +19,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include "can.h"
 
 using std::int8_t;
 using std::uint8_t;
